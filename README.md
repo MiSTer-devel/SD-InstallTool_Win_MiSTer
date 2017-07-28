@@ -14,6 +14,20 @@ Not supported:
 Pre-requisites:
 - .Net framework v2.0 or newer installed
 
+## Goal
+
+To have tool capable seamlessly create SD Card for MiSTer FPGA project.
+In fact, it can be used to produce SD Cards for any Intel-Altera SoC devices and boards.
+
+### How it's different from others
+
+If standard way of distributing disk images is used (Win32DiskImager for example), you're restricted in disk size defined during image creation. If images was created using 2GB SD card - you'll get 2GB worth of data on your SD even if it's 16, 32, 64GB in real size.
+
+Yes, then you can try to expand last partition in Linux, but in our opinion it's highly unfriendly to the end user.
+
+So, we made it real simple and effective: service and Linux OS partitions have reasonable limits to fit everything needed to boot the device and have no issues with space for few years. But all user data (emulation cores, settings, disk images, etc.) are located in flexible size Data partition. And SD Install tool calculates in on-the-fly based in real SD Card size.
+So, you'll get maximum size for your data and no headache. Everything is done automatically.
+
 ## Screenshots:
 
 Main window:
