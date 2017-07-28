@@ -1,0 +1,4 @@
+LIBRARY misterhelper
+
+EXPORTS
+	Format @1

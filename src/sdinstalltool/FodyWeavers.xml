@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Weavers>
+  <Virtuosity />
+  <Costura IncludeDebugSymbols="false">
+    <PreloaderOrder>
+      misterhelper
+    </PreloaderOrder>
+    <IncludeAssmemblies>
+      ICSharpCode.SharpZipLib
+    </IncludeAssmemblies>
+    <Unmanaged32Assemblies>
+      misterhelper
+    </Unmanaged32Assemblies>
+  </Costura>
+</Weavers>
