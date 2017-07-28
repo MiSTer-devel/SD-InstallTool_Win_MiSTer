@@ -1,0 +1,9 @@
+packages/
+bin/
+obj/
+Debug/
+Release/
+x64/
+*.user
+*.filters
+
