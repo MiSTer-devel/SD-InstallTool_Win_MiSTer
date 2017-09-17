@@ -412,7 +412,7 @@ namespace SDInstallTool
             isDiskUpdatable = result;
 
             // Update UI status
-            if (isDiskUpdatable)
+            if (isDiskUpdatable && isUpdatePackageValid)
             {
                 buttonLinux.Enabled = true;
             }
