@@ -338,6 +338,7 @@ namespace SDInstallTool
                 var linuxPartitionOffsetSectors = linuxPartition.offsetSec;
                 var linuxPartitionSizeSectors = linuxPartition.sizeSec;
 
+                cleanReservedAreas(physicalDiskName);
                 writePreloaderPartitionFromFile(physicalDiskName, preloaderPartitionOffsetSectors, preloaderPartitionSizeSectors, bytesPerSector, true, 0, 10);
                 writeLinuxPartitionFromFile(physicalDiskName, linuxPartitionOffsetSectors, linuxPartitionSizeSectors, bytesPerSector, true, 10, 100);
                 setProgress(100);
@@ -566,6 +567,13 @@ namespace SDInstallTool
             result.Add(preloaderPartition);
 
             #endregion
+
+            return result;
+        }
+
+        private static bool cleanReservedAreas(String physicalDiskName)
+        {
+            bool result = cleanReservedAreasWin32(physicalDiskName);
 
             return result;
         }

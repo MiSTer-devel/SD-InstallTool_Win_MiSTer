@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using SDInstallTool.Helpers;
 using System.Text.RegularExpressions;
-using System.Globalization;
 using System.Linq;
 
 namespace SDInstallTool
@@ -656,6 +655,50 @@ namespace SDInstallTool
         }
 
         #endregion wipeDiskBlockWin32
+
+        #region cleanReservedAreasWin32
+
+        private static bool cleanReservedAreasWin32(String physicalDiskName)
+        {
+            bool result = false;
+
+            Logger.Info("Starting to clean disk reserved areas...");
+
+            var disk = discoverDisk(physicalDiskName);
+            prepareDiskForWiping(disk);
+
+            using (SafeFileHandle hDisk = openDiskWin32(physicalDiskName))
+            {
+                if (dismountVolumeWin32(hDisk))
+                {
+                    if (lockVolumeWin32(hDisk))
+                    {
+                        uint bytesPerSector = 512; // Hardcode until issues found. Then read from drive geometry can be implemented
+
+                        // All reserved area + Preloade (U-Boot) partition needs to be wiped, except the very first sector
+                        // First disk sector contains MBR
+                        var sectorsToWrite = ((PARTITION_RESERVED_AREA + PARTITION_0_SIZE) / bytesPerSector) - 1;
+                        var wipeBuffer = new byte[sectorsToWrite * bytesPerSector];
+
+                        setFilePointerWin32(hDisk, (int)bytesPerSector, NativeMethods.FILE_SEEK_BEGIN);
+
+                        UInt32 nBytesWritten = 0;
+                        WriteFile(hDisk, wipeBuffer, (uint)wipeBuffer.Length, out nBytesWritten, IntPtr.Zero);
+
+                        unlockVolumeWin32(hDisk);
+                    }
+                }
+            }
+
+            // Step 3. Unlock previously locked volume handles
+            unlockDiskAfterWiping(disk);
+
+            Logger.Info("Done");
+
+            return result;
+        }
+
+        #endregion cleanReservedAreasWin32
 
         #region getAllVolumesForDiskWin32
         public static List<String> getAllVolumesForDiskWin32(String physicalDiskName)
