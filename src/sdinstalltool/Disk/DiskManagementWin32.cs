@@ -141,8 +141,15 @@ namespace SDInstallTool
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern uint SetFilePointer(
             [In] SafeFileHandle hFile,
-            [In] Int32 lDistanceToMove,
+            [In] UInt32 nDistanceToMove,
             [In, Out] IntPtr lpDistanceToMoveHigh,
+            [In] UInt32 dwMoveMethod);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool SetFilePointerEx(
+            [In] SafeFileHandle hFile,
+            [In] long liDistanceToMove,
+            [Out] out long lpNewFilePointer,
             [In] UInt32 dwMoveMethod);
 
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -345,19 +352,12 @@ namespace SDInstallTool
 
         #region setFilePointerWin32
 
-        public static bool setFilePointerWin32(SafeFileHandle hFile, int distanceToMove, uint moveMethod)
+        public static bool setFilePointerWin32(SafeFileHandle hFile, uint distanceToMove, uint moveMethod)
         {
             bool result = false;
 
-            uint distanceToMoveHigh = 0;
-            var lpDistanceToMoveHigh = new IntPtr(distanceToMoveHigh);
-
-            uint res = SetFilePointer(hFile, distanceToMove, lpDistanceToMoveHigh, moveMethod);
-
-            if (res != NativeMethods.INVALID_SET_FILE_POINTER)
-            {
-                result = true;
-            }
+            long newStartOffset = 0;
+            result = SetFilePointerEx(hFile, distanceToMove, out newStartOffset, moveMethod);
 
             return result;
         }
@@ -372,12 +372,10 @@ namespace SDInstallTool
             uint nNumberOfBytesRead = 0;
 
             long startOffset = startSector * sectorSize;
-            byte[] bytesOffset = BitConverter.GetBytes(startOffset);
-            int lowStartOffset = BitConverter.ToInt32(bytesOffset, 0);
-            int highStartOffset = BitConverter.ToInt32(bytesOffset, 4);
-            var pHighStartOffset = new IntPtr(highStartOffset);
+            long newStartOffset = 0;
 
-            SetFilePointer(hHandle, lowStartOffset, pHighStartOffset, NativeMethods.FILE_SEEK_BEGIN);
+            result = SetFilePointerEx(hHandle, startOffset, out newStartOffset, NativeMethods.FILE_SEEK_BEGIN);
+            if (!result) return result;
 
             uint nNumberOfBytesToRead = (uint)(numSectors * sectorSize);
             if (ReadFile(hHandle, bytes, nNumberOfBytesToRead, out nNumberOfBytesRead, IntPtr.Zero))
@@ -402,12 +400,10 @@ namespace SDInstallTool
             UInt32 nBytesWritten = 0;
 
             long startOffset = startSector * sectorSize;
-            byte[] bytesOffset = BitConverter.GetBytes(startOffset);
-            int lowStartOffset = BitConverter.ToInt32(bytesOffset, 0);
-            int highStartOffset = BitConverter.ToInt32(bytesOffset, 4);
-            var pHighStartOffset = new IntPtr(highStartOffset);
+            long newStartOffset = 0;
 
-            SetFilePointer(hHandle, lowStartOffset, pHighStartOffset, NativeMethods.FILE_SEEK_BEGIN);
+            result = SetFilePointerEx(hHandle, startOffset, out newStartOffset, NativeMethods.FILE_SEEK_BEGIN);
+            if (!result) return result;
 
             uint nNumberOfBytesToWrite = (uint)(numsectors * sectorSize);
             if (WriteFile(hHandle, data, nNumberOfBytesToWrite, out nBytesWritten, IntPtr.Zero))
@@ -677,10 +673,10 @@ namespace SDInstallTool
 
                         // All reserved area + Preloade (U-Boot) partition needs to be wiped, except the very first sector
                         // First disk sector contains MBR
-                        var sectorsToWrite = ((PARTITION_RESERVED_AREA + PARTITION_0_SIZE) / bytesPerSector) - 1;
+                        var sectorsToWrite = (PARTITION_RESERVED_AREA / bytesPerSector) - 1;
                         var wipeBuffer = new byte[sectorsToWrite * bytesPerSector];
 
-                        setFilePointerWin32(hDisk, (int)bytesPerSector, NativeMethods.FILE_SEEK_BEGIN);
+                        setFilePointerWin32(hDisk, bytesPerSector, NativeMethods.FILE_SEEK_BEGIN);
 
                         UInt32 nBytesWritten = 0;
                         WriteFile(hDisk, wipeBuffer, (uint)wipeBuffer.Length, out nBytesWritten, IntPtr.Zero);

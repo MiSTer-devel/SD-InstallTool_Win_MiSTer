@@ -195,9 +195,8 @@ namespace SDInstallTool
                     setProgress(5);
 
                     // Step 4: Calculate partition sizes based on SD card capacity
-                    // Partition 0: Fixed size (Altera SoC preloader)
-                    // Partition 1: Fixed size (Linux Ext4)
-                    // Partition 2: Flexible size (ExFAT)
+                    // Partition 0: Flexible size (ExFAT)
+                    // Partition 1: Fixed size (Altera SoC preloader)
                     var partitions = calculatePartitions(physicalDiskName);
 
                     // Step 5: Write partition information into MBR
@@ -208,7 +207,7 @@ namespace SDInstallTool
                         // Re-read disk structure according new partitioning
                         var disk = discoverDisk(physicalDiskName);
 
-                        if (disk != null && disk.partitions.Count >= 3)
+                        if (disk != null && disk.partitions.Count == 2)
                         {
                             var bytesPerSector = disk.bytesPerSector;
 
@@ -224,33 +223,21 @@ namespace SDInstallTool
                                     fatVolumeGUID = volumes[0];
                                 }
                             }
-                            if (disk.volumes.Count == 1)
+                            else
                             {
-                                // Windows 7 sees only FAT/FAT32/ExFAT/NTFS volumes
+                                // Data partition is first, for both Windows 7 and Windows 10.
                                 fatVolumeGUID = disk.volumes[0].GUID;
                             }
-                            else if (disk.volumes.Count >= 3)
-                            {
-                                // Windows 10 sees all volumes intependently on partition type
-                                fatVolumeGUID = disk.volumes[2].GUID;
-                            }
 
-                            var preloaderPartition = disk.partitions[0];
+                            var preloaderPartition = disk.partitions[1];
                             var preloaderPartitionOffsetSector = preloaderPartition.offsetSec;
                             var preloaderPartitionSizeSectors = preloaderPartition.sizeSec;
 
-                            var linuxPartition = disk.partitions[1];
-                            var linuxPartitionOffsetSector = linuxPartition.offsetSec;
-                            var linuxPartitionSizeSectors = linuxPartition.sizeSec;
-
                             #region Extra sanity check
                             var referencePreloaderPartitionSizeSectors = (uint)(PARTITION_0_SIZE / (ulong)bytesPerSector);
-                            var referenceLinuxPartitionSizeSectors = (uint)(PARTITION_1_SIZE / (ulong)bytesPerSector);
-
-                            if (preloaderPartitionSizeSectors > referencePreloaderPartitionSizeSectors ||
-                                linuxPartitionSizeSectors > referenceLinuxPartitionSizeSectors)
+                            if (preloaderPartitionSizeSectors < referencePreloaderPartitionSizeSectors)
                             {
-                                Logger.Error("Partition size(s) are smaller than required. Stopping further processing");
+                                Logger.Error("Boot partition size is smaller than required. Stopping further processing");
                                 return result;
                             }
 
@@ -273,17 +260,8 @@ namespace SDInstallTool
                                 bytesPerSector,
                                 true,
                                 15,
-                                20);
-
-                            // Step 6.2: Write Linux partition from image file
-                            writeLinuxPartitionFromFile(
-                                physicalDiskName,
-                                linuxPartitionOffsetSector,
-                                linuxPartitionSizeSectors,
-                                bytesPerSector,
-                                false,
-                                20,
                                 90);
+
                             setProgress(90);
 
                             // Step 6.3: Format ExFAT partition programmatically
@@ -295,11 +273,8 @@ namespace SDInstallTool
                                 // We treat as success only when partition successfully formatted and has letter assigned
                                 result = true;
 
-                                // Step 7 (Optional): Unpack mister data files to Data partition
-                                if (ImageManager.checkMisterPackage())
-                                {
-                                    ImageManager.unpackMisterPackage(mountPoint);
-                                }
+                                // Step 7 (Optional): copy Linux and/or MiSTer data files to Data partition
+                                ImageManager.copyUpdateFiles(mountPoint);
                             }
 
                             setProgress(100);
@@ -319,28 +294,103 @@ namespace SDInstallTool
             return result;
         }
 
-        public static bool updateLinux(String physicalDiskName)
+        public static bool updateAll(String physicalDiskName)
+        {
+            bool result = false;
+
+            setProgress(5);
+
+            // Re-read disk structure according new partitioning
+            var disk = discoverDisk(physicalDiskName);
+
+            if (disk != null && disk.partitions.Count >= 2)
+            {
+                var bytesPerSector = disk.bytesPerSector;
+
+                // Partitions in disk descriptor already sorted by start offset
+                // partitions should be checked before for compatibility
+                var preloaderPartition = (disk.partitions.Count == 2) ? disk.partitions[1] : disk.partitions[0];
+
+                var preloaderPartitionOffsetSectors = preloaderPartition.offsetSec;
+                var preloaderPartitionSizeSectors = preloaderPartition.sizeSec;
+
+                cleanReservedAreas(physicalDiskName);
+                writePreloaderPartitionFromFile(physicalDiskName, preloaderPartitionOffsetSectors, preloaderPartitionSizeSectors, bytesPerSector, true, 0, 10);
+
+                setProgress(10);
+
+                var fatVolumeGUID = String.Empty;
+                if (disk.volumes.Count == 0)
+                {
+                    // WMI was unable to provide information about volume
+                    // Let's retrieve from WinAPI
+                    var volumes = getAllVolumesForDiskWin32(physicalDiskName);
+                    if (volumes.Count > 0)
+                    {
+                        // TODO: Probably it's necessary to match volume by size / FS type
+                        fatVolumeGUID = volumes[0];
+                    }
+                }
+                else if(disk.volumes.Count < 3)
+                {
+                    // Data partition is first, for both Windows 7 and Windows 10.
+                    fatVolumeGUID = disk.volumes[0].GUID;
+                }
+                else
+                {
+                    // Old layout on Windows 10.
+                    fatVolumeGUID = disk.volumes[2].GUID;
+                }
+
+                if (String.IsNullOrEmpty(fatVolumeGUID)) return false;
+
+                // Unmount all points related to the disk
+                // OS tries to mount Linux and FAT partitions immediately
+                foreach (var volume in disk.volumes)
+                {
+                    dismountVolume(volume.GUID);
+                }
+                setProgress(15);
+
+                String mountPoint = mountVolume(fatVolumeGUID);
+
+                setProgress(20);
+
+                if (!String.IsNullOrEmpty(mountPoint))
+                {
+                    // We treat as success only when partition successfully formatted and has letter assigned
+                    result = true;
+
+                    // Step 7 (Optional): copy Linux and/or MiSTer data files to Data partition
+                    ImageManager.copyUpdateFiles(mountPoint);
+                }
+
+                setProgress(100);
+            }
+
+            return result;
+        }
+
+        public static bool updateBoot(String physicalDiskName)
         {
             bool result = false;
 
             // Read disk structure
             var disk = discoverDisk(physicalDiskName);
-            var bytesPerSector = disk.bytesPerSector;
 
-            if (disk != null && disk.partitions.Count >= 3)
+            if (disk != null && disk.partitions.Count >= 2)
             {
+                var bytesPerSector = disk.bytesPerSector;
+
                 // Partitions in disk descriptor already sorted by start offset
-                var preloaderPartition = disk.partitions[0];
+                // partitions should be checked before for compatibility
+                var preloaderPartition = (disk.partitions.Count == 2) ? disk.partitions[1] : disk.partitions[0];
+
                 var preloaderPartitionOffsetSectors = preloaderPartition.offsetSec;
                 var preloaderPartitionSizeSectors = preloaderPartition.sizeSec;
 
-                var linuxPartition = disk.partitions[1];
-                var linuxPartitionOffsetSectors = linuxPartition.offsetSec;
-                var linuxPartitionSizeSectors = linuxPartition.sizeSec;
-
                 cleanReservedAreas(physicalDiskName);
                 writePreloaderPartitionFromFile(physicalDiskName, preloaderPartitionOffsetSectors, preloaderPartitionSizeSectors, bytesPerSector, true, 0, 10);
-                writeLinuxPartitionFromFile(physicalDiskName, linuxPartitionOffsetSectors, linuxPartitionSizeSectors, bytesPerSector, true, 10, 100);
                 setProgress(100);
 
                 result = true;
@@ -523,14 +573,7 @@ namespace SDInstallTool
             #region Partition sizes in sectors calculations
             uint reservedSpaceSectors = Convert.ToUInt32(PARTITION_RESERVED_AREA / sectorSize);
             uint preloaderPartitionSectors = Convert.ToUInt32(PARTITION_0_SIZE / sectorSize);
-            uint linuxPartitionSectors = Convert.ToUInt32(PARTITION_1_SIZE / sectorSize);
-            uint usedSizeSectors = reservedSpaceSectors + preloaderPartitionSectors + linuxPartitionSectors;
-
-            if (usedSizeSectors >= diskSizeSectors)
-            {
-                // No room for ExFAT data partition
-                return result;
-            }
+            uint usedSizeSectors = reservedSpaceSectors + preloaderPartitionSectors;
 
             uint dataPartitionSectors = Convert.ToUInt32(diskSizeSectors - usedSizeSectors);
 
@@ -538,20 +581,15 @@ namespace SDInstallTool
 
             #region Create PartitionInfo structures
 
-            PartitionInfo preloaderPartition = new PartitionInfo();
-            preloaderPartition.type = PartitionTypeEnum.SoCPreloader;
-            preloaderPartition.offsetStart = reservedSpaceSectors;
-            preloaderPartition.length = preloaderPartitionSectors;
-
-            PartitionInfo linuxPartition = new PartitionInfo();
-            linuxPartition.type = PartitionTypeEnum.Linux;
-            linuxPartition.offsetStart = preloaderPartition.offsetStart + preloaderPartition.length;
-            linuxPartition.length = linuxPartitionSectors;
-
             PartitionInfo dataPartition = new PartitionInfo();
             dataPartition.type = PartitionTypeEnum.ExFAT;
-            dataPartition.offsetStart = linuxPartition.offsetStart + linuxPartition.length;
+            dataPartition.offsetStart = reservedSpaceSectors; // linuxPartition.offsetStart + linuxPartition.length;
             dataPartition.length = dataPartitionSectors;
+
+            PartitionInfo preloaderPartition = new PartitionInfo();
+            preloaderPartition.type = PartitionTypeEnum.SoCPreloader;
+            preloaderPartition.offsetStart = dataPartition.offsetStart + dataPartition.length;
+            preloaderPartition.length = preloaderPartitionSectors;
 
             #endregion
 
@@ -560,10 +598,7 @@ namespace SDInstallTool
             // Data partition should go into MBR first. Otherwise Windows OS unable to mount it
             result.Add(dataPartition);
 
-            // Linux goes into second MBR partition record
-            result.Add(linuxPartition);
-
-            // SoC preloader partition goes into third MBR partition record
+            // SoC preloader partition goes into second MBR partition record
             result.Add(preloaderPartition);
 
             #endregion
@@ -588,29 +623,6 @@ namespace SDInstallTool
             int finishProgress = 0)
         {
             var imageFilePath = ImageManager.UbootPartitionFileName;
-            bool result = writeVolumeFromImage(
-                physicalDiskName,
-                startOffset,
-                imageFilePath,
-                maxSectors,
-                sectorSize,
-                wipeRemainder,
-                startProgress,
-                finishProgress);
-
-            return result;
-        }
-
-        private static bool writeLinuxPartitionFromFile(
-            String physicalDiskName,
-            uint startOffset,
-            uint maxSectors,
-            int sectorSize,
-            bool wipeRemainder = false,
-            int startProgress = 0,
-            int finishProgress = 0)
-        {
-            var imageFilePath = ImageManager.LinuxPartitionFileName;
             bool result = writeVolumeFromImage(
                 physicalDiskName,
                 startOffset,
@@ -1447,9 +1459,9 @@ namespace SDInstallTool
         /// <remarks>Microsoft Magazine article: https://msdn.microsoft.com/en-us/magazine/dd419661.aspx?f=255&MSPPError=-2147217396#id0070035 </remarks>
         //[HandleProcessCorruptedStateExceptions]
         [SecurityCritical]
-        public static bool CheckDiskCompatible(String physicalDiskName, uint bytesPerSector)
+        public static int CheckDiskCompatible(String physicalDiskName, uint bytesPerSector)
         {
-            bool result = false;
+            int result = 0;
 
             // Read MBR from disk into 512 bytes array
             byte[] mbr = new byte[0];
@@ -1477,14 +1489,13 @@ namespace SDInstallTool
             var volumes = getAllVolumesForDiskWin32(physicalDiskName);
             if (volumes != null && volumes.Count > 0)
             {
-                if (volumes.Count == 1)
+                if (volumes.Count < 3)
                 {
-                    // Windows 7 returns only recognized partitions
                     dataVolumeGUID = volumes[0];
                 }
-                else if (volumes.Count >= 3)
+                else
                 {
-                    // Windows 10 returns all volumes on disk
+                    // Windows 10 returns all volumes on disk, old layout
                     dataVolumeGUID = volumes[2];
                 }
             }
@@ -1535,8 +1546,8 @@ namespace SDInstallTool
 
                     // Preloader and Linux partition need to be at least required size
                     var minPreloaderSize = PARTITION_0_SIZE - bytesPerSector; // Linux script produces 1 sector smaller partition. Accept it as well.
-                    if (preloaderSize >= minPreloaderSize &&
-                        linuxSize >= PARTITION_1_SIZE)
+                    if (preloader.type == PartitionTypeEnum.SoCPreloader && preloaderSize >= minPreloaderSize &&
+                        linux.type == PartitionTypeEnum.Linux)
                     {
                         // Preloader needs to go before Linux partition
                         if (preloaderStart < linuxStart)
@@ -1554,8 +1565,8 @@ namespace SDInstallTool
                                     data.type == PartitionTypeEnum.FAT32LBA)
                                 )
                             {
-                                Logger.Info("Card is compatible with MiSTer. Partial update can be applied");
-                                result = true;
+                                Logger.Info("Card has old MiSTer layout. Partial update can be applied");
+                                result = 1;
                             }
                             else
                             {
@@ -1591,6 +1602,46 @@ namespace SDInstallTool
                         if (linuxSize < PARTITION_1_SIZE)
                         {
                             Logger.Info("Linux partition (2) needs to be at least {0} bytes", PARTITION_0_SIZE);
+                        }
+
+                        Logger.Info("Use 'Full Install' option to repartition");
+                        #endregion Info Log
+                    }
+                }
+                else
+                if (partitions != null && partitions.Count == 2)
+                {
+                    var preloader = partitions[1];
+                    var data = partitions[0];
+
+                    var preloaderSize = preloader.length * bytesPerSector;
+                    var dataSize = data.length * bytesPerSector;
+
+                    var preloaderStart = preloader.offsetStart;
+                    var dataStart = data.offsetStart;
+
+                    #region Info Log
+
+                    #endregion Info Log
+
+                    // Preloader and Linux partition need to be at least required size
+                    var minPreloaderSize = PARTITION_0_SIZE - bytesPerSector; // Linux script produces 1 sector smaller partition. Accept it as well.
+                    if (preloader.type == PartitionTypeEnum.SoCPreloader && preloaderSize >= minPreloaderSize)
+                    {
+                        #region Info Log
+                        Logger.Info("Card has new MiSTer layout. Partial update can be applied");
+                        result = 2;
+
+                        #endregion Info Log
+                    }
+                    else
+                    {
+                        #region Info Log
+                        Logger.Info("Card is incompatible with MiSTer");
+
+                        if (preloaderSize < PARTITION_1_SIZE)
+                        {
+                            Logger.Info("U-Boot partition (1) needs to be at least {0} bytes", PARTITION_0_SIZE);
                         }
 
                         Logger.Info("Use 'Full Install' option to repartition");

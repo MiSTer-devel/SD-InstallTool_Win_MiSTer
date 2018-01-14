@@ -25,6 +25,7 @@ namespace SDInstallTool
         private DriveDetector _driveWatcher;
         private bool isUpdatePackageValid = false;
         private bool isDiskUpdatable = false;
+        private bool isOldLayout = false;
         private String currentPhysicalDisk = String.Empty;
 
         private LogForm frmLog = null;
@@ -275,7 +276,8 @@ namespace SDInstallTool
             buttonRefresh.Enabled = false;
 
             buttonFull.Enabled = false;
-            buttonLinux.Enabled = false;
+            buttonUpdBoot.Enabled = false;
+            buttonUpdAll.Enabled = false;
             buttonWipe.Enabled = false;
 
             textDiskSize.Enabled = false;
@@ -293,7 +295,8 @@ namespace SDInstallTool
 
             // Enable buttons base on conditions
             buttonFull.Enabled = isUpdatePackageValid;
-            buttonLinux.Enabled = isUpdatePackageValid && isDiskUpdatable;
+            buttonUpdBoot.Enabled = isUpdatePackageValid && isDiskUpdatable;
+            buttonUpdAll.Enabled = isUpdatePackageValid && isDiskUpdatable;
 
             buttonWipe.Enabled = true;
             textDiskSize.Enabled = true;
@@ -361,7 +364,7 @@ namespace SDInstallTool
                 // Success
                 isUpdatePackageValid = true;
 
-                nameText = "U-Boot + Linux";
+                nameText = "Boot";
             }
 
             if (isUpdatePackageValid)
@@ -374,10 +377,10 @@ namespace SDInstallTool
             }
             #endregion Check for mandatory packages
 
-            #region Check for optional MiSTer app package
-            if (ImageManager.checkMisterPackage())
+            #region Check for optional MiSTer app packages
+            if (ImageManager.checkUpdateFiles())
             {
-                nameText += " + MiSTer";
+                nameText += " + Files";
             }
             #endregion
 
@@ -395,13 +398,18 @@ namespace SDInstallTool
         bool CheckPartialUpdateCompatible(String physicalDiskName, uint bytesPerSector)
         {
             bool result = false;
+            isDiskUpdatable = false;
+            isOldLayout = false;
 
             //TODO: Remove Debug
             Logger.Info("CheckPartialUpdateCompatible()...");
 
             try
             {
-                result = DiskManagement.CheckDiskCompatible(physicalDiskName, bytesPerSector);
+                int type = DiskManagement.CheckDiskCompatible(physicalDiskName, bytesPerSector);
+                isDiskUpdatable = (type != 0);
+                isOldLayout = (type != 2);
+                result = (type != 0);
             }
             catch (Exception e)
             {
@@ -409,16 +417,15 @@ namespace SDInstallTool
                 Logger.Error(e.Message);
             }
 
-            isDiskUpdatable = result;
 
             // Update UI status
             if (isDiskUpdatable && isUpdatePackageValid)
             {
-                buttonLinux.Enabled = true;
+                buttonUpdBoot.Enabled = true;
             }
             else
             {
-                buttonLinux.Enabled = false;
+                buttonUpdBoot.Enabled = false;
             }
 
             //TODO: Remove Debug
@@ -552,7 +559,7 @@ namespace SDInstallTool
             }
         }
 
-        private void buttonLinux_Click(object sender, EventArgs e)
+        private void buttonUpdBoot_Click(object sender, EventArgs e)
         {
             var item = (ComboBoxItem)this.comboBoxDrives.SelectedItem;
 
@@ -560,7 +567,7 @@ namespace SDInstallTool
             {
                 var disk = DiskManagement.getDiskDescriptor(item.value);
 
-                var message = string.Format("MiSTer system partitions will be updated.\r\nUser data will remain untouched and safe\r\n Do you want to continue?", disk.displayName, disk.description);
+                var message = string.Format("MiSTer bootloader will be updated.\r\nUser data will remain untouched and safe\r\n Do you want to continue?", disk.displayName, disk.description);
                 var confirmResult = MessageBox.Show(message, "Warning!", MessageBoxButtons.YesNo);
                 if (confirmResult == DialogResult.Yes)
                 {
@@ -569,7 +576,46 @@ namespace SDInstallTool
                     BackgroundWorker worker = new BackgroundWorker();
                     worker.DoWork += delegate
                     {
-                        if (DiskManagement.updateLinux(disk.physicalName))
+                        if (DiskManagement.updateBoot(disk.physicalName))
+                        {
+                            message = string.Format("Bootloader update on disk {0} finished successfully", disk.displayName);
+                            ShowMessageBoxTopmost(message, "Operation finished");
+                        }
+                        else
+                        {
+                            message = string.Format("Unable to update on {0}", disk.displayName);
+                            ShowMessageBoxTopmost(message, "Operation failed");
+                        }
+                    };
+                    worker.RunWorkerCompleted += delegate
+                    {
+                        DiskOperationFinished();
+                        CheckPartialUpdateCompatible(disk.physicalName, disk.bytesPerSector);
+                    };
+
+                    worker.RunWorkerAsync();
+                }
+            }
+        }
+
+        private void buttonUpdAll_Click(object sender, EventArgs e)
+        {
+            var item = (ComboBoxItem)this.comboBoxDrives.SelectedItem;
+
+            if (item != null && item.value.Length > 0)
+            {
+                var disk = DiskManagement.getDiskDescriptor(item.value);
+
+                var message = string.Format("MiSTer bootloader, Linux and system files will be updated.\r\nUser data will remain untouched and safe\r\n Do you want to continue?", disk.displayName, disk.description);
+                var confirmResult = MessageBox.Show(message, "Warning!", MessageBoxButtons.YesNo);
+                if (confirmResult == DialogResult.Yes)
+                {
+                    DiskOperationStarted();
+
+                    BackgroundWorker worker = new BackgroundWorker();
+                    worker.DoWork += delegate
+                    {
+                        if (DiskManagement.updateAll(disk.physicalName))
                         {
                             message = string.Format("System update on disk {0} finished successfully", disk.displayName);
                             ShowMessageBoxTopmost(message, "Operation finished");
@@ -652,6 +698,10 @@ namespace SDInstallTool
 
                 // Check drive
                 CheckPartialUpdateCompatible(diskDescriptor.physicalName, diskDescriptor.bytesPerSector);
+                if (isOldLayout)
+                {
+                    labelStatus.Text = @"Old disk layout. Full install is recommended";
+                }
             }
             else
             {

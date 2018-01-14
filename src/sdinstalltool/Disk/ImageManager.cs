@@ -12,9 +12,8 @@ namespace SDInstallTool
     {
         #region Constants
 
-        public static readonly String UbootPartitionFileName = "uboot.img";
-        public static readonly String LinuxPartitionFileName = "linux.img";
-        public static readonly String MisterArchiveFileName = "mister.zip";
+        public static readonly String files = "files";
+        public static readonly String UbootPartitionFileName = files+"\\linux\\uboot.img";
 
         #endregion
 
@@ -45,7 +44,6 @@ namespace SDInstallTool
         static ImageManager()
         {
             partitionImages.Add(new PartitionImage(UbootPartitionFileName, 1024 * 1024));
-            partitionImages.Add(new PartitionImage(LinuxPartitionFileName, 500 * 1024 * 1024));
         }
 
         #endregion
@@ -55,11 +53,6 @@ namespace SDInstallTool
         private static String getUootImagePath()
         {
             return UbootPartitionFileName;
-        }
-
-        private static String getLinuxImagePath()
-        {
-            return LinuxPartitionFileName;
         }
 
         #endregion
@@ -105,51 +98,54 @@ namespace SDInstallTool
             return result;
         }
 
-        public static bool checkMisterPackage()
+        public static void Copy(string sourceDirectory, string targetDirectory)
         {
-            bool result = false;
+            DirectoryInfo diSource = new DirectoryInfo(sourceDirectory);
+            DirectoryInfo diTarget = new DirectoryInfo(targetDirectory);
 
-            var fileName = MisterArchiveFileName;
-            var currentFolder = Directory.GetCurrentDirectory();
-            var filePath = Path.Combine(currentFolder, fileName);
-
-            if (File.Exists(filePath))
-            {
-                Int64 fileSizeInBytes = new FileInfo(fileName).Length;
-
-                if (fileSizeInBytes > 0)
-                {
-                    result = true;
-                }
-            }
-
-            return result;
+            CopyAll(diSource, diTarget);
         }
 
-        public static bool unpackMisterPackage(String volumePath)
+        public static void CopyAll(DirectoryInfo source, DirectoryInfo target)
         {
-            bool result = false;
+            Directory.CreateDirectory(target.FullName);
 
-            var fileName = MisterArchiveFileName;
+            // Copy each file into the new directory.
+            foreach (FileInfo fi in source.GetFiles())
+            {
+                Logger.Info("Copying "+ Path.Combine(target.FullName, fi.Name));
+                fi.CopyTo(Path.Combine(target.FullName, fi.Name), true);
+            }
+
+            // Copy each subdirectory using recursion.
+            foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
+            {
+                DirectoryInfo nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name);
+                CopyAll(diSourceSubDir, nextTargetSubDir);
+            }
+        }
+
+        public static bool checkUpdateFiles()
+        {
             var currentFolder = Directory.GetCurrentDirectory();
-            var filePath = Path.Combine(currentFolder, fileName);
+            var DirPath = Path.Combine(currentFolder, files);
 
-            try
+            return Directory.Exists(DirPath);
+        }
+
+        public static bool copyUpdateFiles(String volumePath)
+        {
+            var currentFolder = Directory.GetCurrentDirectory();
+            var srcPath = Path.Combine(currentFolder, files);
+            var dstPath = volumePath;
+
+            if (Directory.Exists(srcPath))
             {
-                FastZip fastZip = new FastZip();
-                string filter = null; // Don't filter any files at all
-                
-                //fastZip.ExtractZip(filePath, volumePath, filter);
-                fastZip.ExtractZip(filePath, volumePath, Overwrite.Always, null, filter, filter, false);
-
-                result = true;
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e.Message);
+                Copy(srcPath, dstPath);
+                return true;
             }
 
-            return result;
+            return false;
         }
 
         #endregion
