@@ -45,10 +45,10 @@
             this.textDiskSize = new System.Windows.Forms.TextBox();
             this.buttonRefresh = new System.Windows.Forms.Button();
             this.buttonFull = new System.Windows.Forms.Button();
-            this.buttonUpdBoot = new System.Windows.Forms.Button();
+            this.buttonUpdateBoot = new System.Windows.Forms.Button();
             this.buttonWipe = new System.Windows.Forms.Button();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
-            this.buttonUpdAll = new System.Windows.Forms.Button();
+            this.buttonUpdateAll = new System.Windows.Forms.Button();
             this.statusStrip1.SuspendLayout();
             this.menuStripMain.SuspendLayout();
             this.groupBox1.SuspendLayout();
@@ -60,20 +60,18 @@
             this.comboBoxDrives.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxDrives.ForeColor = System.Drawing.SystemColors.MenuText;
             this.comboBoxDrives.FormattingEnabled = true;
-            this.comboBoxDrives.Location = new System.Drawing.Point(104, 28);
-            this.comboBoxDrives.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.comboBoxDrives.Location = new System.Drawing.Point(69, 18);
             this.comboBoxDrives.Name = "comboBoxDrives";
-            this.comboBoxDrives.Size = new System.Drawing.Size(349, 28);
+            this.comboBoxDrives.Size = new System.Drawing.Size(234, 21);
             this.comboBoxDrives.TabIndex = 0;
             this.comboBoxDrives.SelectedIndexChanged += new System.EventHandler(this.driveSelectionChanged);
             // 
             // textBoxFileName
             // 
-            this.textBoxFileName.Location = new System.Drawing.Point(116, 48);
-            this.textBoxFileName.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.textBoxFileName.Location = new System.Drawing.Point(77, 31);
             this.textBoxFileName.Name = "textBoxFileName";
             this.textBoxFileName.ReadOnly = true;
-            this.textBoxFileName.Size = new System.Drawing.Size(522, 26);
+            this.textBoxFileName.Size = new System.Drawing.Size(349, 20);
             this.textBoxFileName.TabIndex = 1;
             // 
             // statusStrip1
@@ -82,50 +80,46 @@
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.labelStatus,
             this.labelStats});
-            this.statusStrip1.Location = new System.Drawing.Point(0, 307);
+            this.statusStrip1.Location = new System.Drawing.Point(0, 197);
             this.statusStrip1.Name = "statusStrip1";
-            this.statusStrip1.Padding = new System.Windows.Forms.Padding(2, 0, 21, 0);
-            this.statusStrip1.Size = new System.Drawing.Size(672, 30);
+            this.statusStrip1.Size = new System.Drawing.Size(448, 22);
             this.statusStrip1.TabIndex = 6;
             this.statusStrip1.Text = "statusStrip1";
             // 
             // labelStatus
             // 
             this.labelStatus.Name = "labelStatus";
-            this.labelStatus.Size = new System.Drawing.Size(68, 25);
+            this.labelStatus.Size = new System.Drawing.Size(44, 17);
             this.labelStatus.Text = "Started";
             // 
             // labelStats
             // 
             this.labelStats.Name = "labelStats";
-            this.labelStats.Size = new System.Drawing.Size(0, 25);
+            this.labelStats.Size = new System.Drawing.Size(0, 17);
             // 
             // labelFileName
             // 
             this.labelFileName.AutoSize = true;
-            this.labelFileName.Location = new System.Drawing.Point(27, 52);
-            this.labelFileName.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelFileName.Location = new System.Drawing.Point(18, 34);
             this.labelFileName.Name = "labelFileName";
-            this.labelFileName.Size = new System.Drawing.Size(58, 20);
+            this.labelFileName.Size = new System.Drawing.Size(39, 13);
             this.labelFileName.TabIndex = 7;
             this.labelFileName.Text = "Image:";
             // 
             // labelDriveTitle
             // 
             this.labelDriveTitle.AutoSize = true;
-            this.labelDriveTitle.Location = new System.Drawing.Point(14, 34);
-            this.labelDriveTitle.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelDriveTitle.Location = new System.Drawing.Point(9, 22);
             this.labelDriveTitle.Name = "labelDriveTitle";
-            this.labelDriveTitle.Size = new System.Drawing.Size(49, 20);
+            this.labelDriveTitle.Size = new System.Drawing.Size(35, 13);
             this.labelDriveTitle.TabIndex = 8;
             this.labelDriveTitle.Text = "Drive:";
             // 
             // progressBar
             // 
-            this.progressBar.Location = new System.Drawing.Point(12, 278);
-            this.progressBar.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.progressBar.Location = new System.Drawing.Point(8, 181);
             this.progressBar.Name = "progressBar";
-            this.progressBar.Size = new System.Drawing.Size(647, 15);
+            this.progressBar.Size = new System.Drawing.Size(431, 10);
             this.progressBar.TabIndex = 9;
             // 
             // menuStripMain
@@ -135,8 +129,7 @@
             this.optionsToolStripMenuItem});
             this.menuStripMain.Location = new System.Drawing.Point(0, 0);
             this.menuStripMain.Name = "menuStripMain";
-            this.menuStripMain.Padding = new System.Windows.Forms.Padding(9, 3, 0, 3);
-            this.menuStripMain.Size = new System.Drawing.Size(672, 35);
+            this.menuStripMain.Size = new System.Drawing.Size(448, 24);
             this.menuStripMain.TabIndex = 12;
             this.menuStripMain.Text = "menuStrip1";
             // 
@@ -145,13 +138,13 @@
             this.optionsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.showLogWindowToolStripMenuItem});
             this.optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
-            this.optionsToolStripMenuItem.Size = new System.Drawing.Size(88, 29);
+            this.optionsToolStripMenuItem.Size = new System.Drawing.Size(61, 20);
             this.optionsToolStripMenuItem.Text = "Options";
             // 
             // showLogWindowToolStripMenuItem
             // 
             this.showLogWindowToolStripMenuItem.Name = "showLogWindowToolStripMenuItem";
-            this.showLogWindowToolStripMenuItem.Size = new System.Drawing.Size(246, 30);
+            this.showLogWindowToolStripMenuItem.Size = new System.Drawing.Size(173, 22);
             this.showLogWindowToolStripMenuItem.Text = "Show Log Window";
             this.showLogWindowToolStripMenuItem.Click += new System.EventHandler(this.showLogWindowToolStripMenuItem_Click);
             // 
@@ -162,11 +155,9 @@
             this.groupBox1.Controls.Add(this.buttonRefresh);
             this.groupBox1.Controls.Add(this.comboBoxDrives);
             this.groupBox1.Controls.Add(this.labelDriveTitle);
-            this.groupBox1.Location = new System.Drawing.Point(12, 92);
-            this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.groupBox1.Location = new System.Drawing.Point(8, 60);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            this.groupBox1.Size = new System.Drawing.Size(647, 126);
+            this.groupBox1.Size = new System.Drawing.Size(431, 82);
             this.groupBox1.TabIndex = 16;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "SD Card";
@@ -174,28 +165,25 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(14, 83);
-            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label1.Location = new System.Drawing.Point(9, 54);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(44, 20);
+            this.label1.Size = new System.Drawing.Size(30, 13);
             this.label1.TabIndex = 19;
             this.label1.Text = "Size:";
             // 
             // textDiskSize
             // 
-            this.textDiskSize.Location = new System.Drawing.Point(104, 78);
-            this.textDiskSize.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.textDiskSize.Location = new System.Drawing.Point(69, 51);
             this.textDiskSize.Name = "textDiskSize";
             this.textDiskSize.ReadOnly = true;
-            this.textDiskSize.Size = new System.Drawing.Size(522, 26);
+            this.textDiskSize.Size = new System.Drawing.Size(349, 20);
             this.textDiskSize.TabIndex = 18;
             // 
             // buttonRefresh
             // 
-            this.buttonRefresh.Location = new System.Drawing.Point(527, 26);
-            this.buttonRefresh.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.buttonRefresh.Location = new System.Drawing.Point(351, 17);
             this.buttonRefresh.Name = "buttonRefresh";
-            this.buttonRefresh.Size = new System.Drawing.Size(99, 35);
+            this.buttonRefresh.Size = new System.Drawing.Size(66, 23);
             this.buttonRefresh.TabIndex = 17;
             this.buttonRefresh.Text = "Refresh";
             this.buttonRefresh.UseVisualStyleBackColor = true;
@@ -203,10 +191,9 @@
             // 
             // buttonFull
             // 
-            this.buttonFull.Location = new System.Drawing.Point(12, 228);
-            this.buttonFull.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.buttonFull.Location = new System.Drawing.Point(8, 148);
             this.buttonFull.Name = "buttonFull";
-            this.buttonFull.Size = new System.Drawing.Size(120, 35);
+            this.buttonFull.Size = new System.Drawing.Size(80, 23);
             this.buttonFull.TabIndex = 17;
             this.buttonFull.Text = "Full install";
             this.buttonFull.UseVisualStyleBackColor = true;
@@ -214,23 +201,21 @@
             // 
             // buttonUpdBoot
             // 
-            this.buttonUpdBoot.Location = new System.Drawing.Point(146, 228);
-            this.buttonUpdBoot.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            this.buttonUpdBoot.Name = "buttonUpdBoot";
-            this.buttonUpdBoot.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
-            this.buttonUpdBoot.Size = new System.Drawing.Size(120, 35);
-            this.buttonUpdBoot.TabIndex = 18;
-            this.buttonUpdBoot.Text = "Update Boot";
-            this.buttonUpdBoot.UseVisualStyleBackColor = true;
-            this.buttonUpdBoot.Click += new System.EventHandler(this.buttonUpdBoot_Click);
+            this.buttonUpdateBoot.Location = new System.Drawing.Point(97, 148);
+            this.buttonUpdateBoot.Name = "buttonUpdBoot";
+            this.buttonUpdateBoot.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
+            this.buttonUpdateBoot.Size = new System.Drawing.Size(80, 23);
+            this.buttonUpdateBoot.TabIndex = 18;
+            this.buttonUpdateBoot.Text = "Update Boot";
+            this.buttonUpdateBoot.UseVisualStyleBackColor = true;
+            this.buttonUpdateBoot.Click += new System.EventHandler(this.buttonUpdateBoot_Click);
             // 
             // buttonWipe
             // 
-            this.buttonWipe.Location = new System.Drawing.Point(539, 228);
-            this.buttonWipe.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.buttonWipe.Location = new System.Drawing.Point(359, 148);
             this.buttonWipe.Name = "buttonWipe";
             this.buttonWipe.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
-            this.buttonWipe.Size = new System.Drawing.Size(120, 35);
+            this.buttonWipe.Size = new System.Drawing.Size(80, 23);
             this.buttonWipe.TabIndex = 19;
             this.buttonWipe.Text = "Wipe";
             this.buttonWipe.UseVisualStyleBackColor = true;
@@ -238,24 +223,23 @@
             // 
             // buttonUpdAll
             // 
-            this.buttonUpdAll.Location = new System.Drawing.Point(281, 228);
-            this.buttonUpdAll.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            this.buttonUpdAll.Name = "buttonUpdAll";
-            this.buttonUpdAll.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
-            this.buttonUpdAll.Size = new System.Drawing.Size(184, 35);
-            this.buttonUpdAll.TabIndex = 20;
-            this.buttonUpdAll.Text = "Update Boot+Files";
-            this.buttonUpdAll.UseVisualStyleBackColor = true;
-            this.buttonUpdAll.Click += new System.EventHandler(this.buttonUpdAll_Click);
+            this.buttonUpdateAll.Location = new System.Drawing.Point(187, 148);
+            this.buttonUpdateAll.Name = "buttonUpdAll";
+            this.buttonUpdateAll.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
+            this.buttonUpdateAll.Size = new System.Drawing.Size(123, 23);
+            this.buttonUpdateAll.TabIndex = 20;
+            this.buttonUpdateAll.Text = "Update Boot+Files";
+            this.buttonUpdateAll.UseVisualStyleBackColor = true;
+            this.buttonUpdateAll.Click += new System.EventHandler(this.buttonUpdateAll_Click);
             // 
             // MainForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(672, 337);
-            this.Controls.Add(this.buttonUpdAll);
+            this.ClientSize = new System.Drawing.Size(448, 219);
+            this.Controls.Add(this.buttonUpdateAll);
             this.Controls.Add(this.buttonWipe);
-            this.Controls.Add(this.buttonUpdBoot);
+            this.Controls.Add(this.buttonUpdateBoot);
             this.Controls.Add(this.buttonFull);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.progressBar);
@@ -265,7 +249,6 @@
             this.Controls.Add(this.textBoxFileName);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Fixed3D;
             this.MainMenuStrip = this.menuStripMain;
-            this.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.MaximizeBox = false;
             this.Name = "MainForm";
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
@@ -298,12 +281,12 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TextBox textDiskSize;
         private System.Windows.Forms.Button buttonFull;
-        private System.Windows.Forms.Button buttonUpdBoot;
+        private System.Windows.Forms.Button buttonUpdateBoot;
         private System.Windows.Forms.Button buttonWipe;
         private System.Windows.Forms.ToolTip toolTip1;
         private System.Windows.Forms.ToolStripMenuItem showLogWindowToolStripMenuItem;
         private System.Windows.Forms.ToolStripStatusLabel labelStats;
-        private System.Windows.Forms.Button buttonUpdAll;
+        private System.Windows.Forms.Button buttonUpdateAll;
     }
 }
 

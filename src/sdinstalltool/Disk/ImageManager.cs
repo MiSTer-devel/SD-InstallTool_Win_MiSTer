@@ -13,7 +13,7 @@ namespace SDInstallTool
         #region Constants
 
         // U-boot partition image (/files/linux/uboot.img) will be written to preloader partition
-        // All other files (files/*) will be copied to FAT partition without any changes
+        // All files and subfolders (files/*) will be copied to FAT partition without any changes
         public static readonly String files = "files";
         public static readonly String UbootPartitionFileName = Path.Combine(Path.Combine(files, "linux"), "uboot.img");
 
@@ -110,8 +110,19 @@ namespace SDInstallTool
 
         public static void CopyAll(DirectoryInfo source, DirectoryInfo target)
         {
+            // Replicate directory structure
             Directory.CreateDirectory(target.FullName);
+            foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
+            {
+                DirectoryInfo nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name);
+            }
 
+            CustomFileCopier copier = new CustomFileCopier();
+            copier.SetFolders(source.FullName, target.FullName);
+            copier.SetProgressLimits(20, 100);
+            copier.CopyData();
+
+            /*
             // Copy each file into the new directory.
             foreach (FileInfo fi in source.GetFiles())
             {
@@ -125,6 +136,7 @@ namespace SDInstallTool
                 DirectoryInfo nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name);
                 CopyAll(diSourceSubDir, nextTargetSubDir);
             }
+            */
         }
 
         public static bool checkUpdateFiles()
@@ -137,6 +149,8 @@ namespace SDInstallTool
 
         public static bool copyUpdateFiles(String volumePath)
         {
+            bool result = false;
+
             var currentFolder = Directory.GetCurrentDirectory();
             var srcPath = Path.Combine(currentFolder, files);
             var dstPath = volumePath;
@@ -144,10 +158,10 @@ namespace SDInstallTool
             if (Directory.Exists(srcPath))
             {
                 Copy(srcPath, dstPath);
-                return true;
+                result = true;
             }
 
-            return false;
+            return result;
         }
 
         #endregion

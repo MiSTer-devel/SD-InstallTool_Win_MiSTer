@@ -63,6 +63,7 @@
     <Compile Include="Detection\DriveDetector.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Disk\CustomFileCopier.cs" />
     <Compile Include="Disk\DiskManagement.cs" />
     <Compile Include="Disk\DiskManagementHelpers.cs" />
     <Compile Include="Disk\DiskManagementWin32.cs" />

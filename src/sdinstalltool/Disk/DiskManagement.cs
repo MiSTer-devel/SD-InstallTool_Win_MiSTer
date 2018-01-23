@@ -152,7 +152,7 @@ namespace SDInstallTool
                         // Step 6: Delete drive layout (MBR sector wiped)
                         if (deleteDriveLayoutWin32(hDisk))
                         {
-                            setProgress(50);
+                            SetProgress(50);
 
                             // Step 7: Wipe the whole reserved area (reserved - 1MB, preloader partition - 1MB, Start of Linux Ext4 - 2MB)
                             if (!diskHasNonMountedPartitions)
@@ -160,12 +160,12 @@ namespace SDInstallTool
 
                             // Step 8: Write MBR signature
                             result = writeEmptyMBR(hDisk);
-                            setProgress(75);
+                            SetProgress(75);
 
                             // Step 8: Re-enumerate disk in OS
                             updateDiskPropertiesWin32(hDisk);
 
-                            setProgress(100);
+                            SetProgress(100);
                         }
                     }
                 }
@@ -192,7 +192,7 @@ namespace SDInstallTool
                 // Step 3: Perform full wipe (MBR + first few megabytes)
                 if (wipeDisk(physicalDiskName))
                 {
-                    setProgress(5);
+                    SetProgress(5);
 
                     // Step 4: Calculate partition sizes based on SD card capacity
                     // Partition 0: Flexible size (ExFAT)
@@ -202,7 +202,7 @@ namespace SDInstallTool
                     // Step 5: Write partition information into MBR
                     if (createPartitions(physicalDiskName, partitions))
                     {
-                        setProgress(10);
+                        SetProgress(10);
 
                         // Re-read disk structure according new partitioning
                         var disk = discoverDisk(physicalDiskName);
@@ -249,7 +249,7 @@ namespace SDInstallTool
                             {
                                 dismountVolume(volume.GUID);
                             }
-                            setProgress(15);
+                            SetProgress(12);
 
                             // Step 6: Initiate images copy into each fixed-size partition
                             // Step 6.1: Write preloader partition from image file
@@ -262,11 +262,11 @@ namespace SDInstallTool
                                 15,
                                 90);
 
-                            setProgress(90);
+                            SetProgress(15);
 
                             // Step 6.3: Format ExFAT partition programmatically
                             String mountPoint = formatDataPartition(fatVolumeGUID);
-                            setProgress(98);
+                            SetProgress(20);
 
                             if (!String.IsNullOrEmpty(mountPoint))
                             {
@@ -277,7 +277,7 @@ namespace SDInstallTool
                                 ImageManager.copyUpdateFiles(mountPoint);
                             }
 
-                            setProgress(100);
+                            SetProgress(100);
                         }
                     }
                 }
@@ -298,7 +298,7 @@ namespace SDInstallTool
         {
             bool result = false;
 
-            setProgress(5);
+            SetProgress(5);
 
             // Re-read disk structure according new partitioning
             var disk = discoverDisk(physicalDiskName);
@@ -317,7 +317,7 @@ namespace SDInstallTool
                 cleanReservedAreas(physicalDiskName);
                 writePreloaderPartitionFromFile(physicalDiskName, preloaderPartitionOffsetSectors, preloaderPartitionSizeSectors, bytesPerSector, true, 0, 10);
 
-                setProgress(10);
+                SetProgress(10);
 
                 var fatVolumeGUID = String.Empty;
                 if (disk.volumes.Count == 0)
@@ -338,7 +338,7 @@ namespace SDInstallTool
                 }
                 else
                 {
-                    // Old layout on Windows 10.
+                    // v1 layout partition
                     fatVolumeGUID = disk.volumes[2].GUID;
                 }
 
@@ -350,11 +350,10 @@ namespace SDInstallTool
                 {
                     dismountVolume(volume.GUID);
                 }
-                setProgress(15);
+                SetProgress(15);
 
                 String mountPoint = mountVolume(fatVolumeGUID);
-
-                setProgress(20);
+                SetProgress(20);
 
                 if (!String.IsNullOrEmpty(mountPoint))
                 {
@@ -365,7 +364,7 @@ namespace SDInstallTool
                     ImageManager.copyUpdateFiles(mountPoint);
                 }
 
-                setProgress(100);
+                SetProgress(100);
             }
 
             return result;
@@ -391,7 +390,7 @@ namespace SDInstallTool
 
                 cleanReservedAreas(physicalDiskName);
                 writePreloaderPartitionFromFile(physicalDiskName, preloaderPartitionOffsetSectors, preloaderPartitionSizeSectors, bytesPerSector, true, 0, 10);
-                setProgress(100);
+                SetProgress(100);
 
                 result = true;
             }
@@ -1326,14 +1325,14 @@ namespace SDInstallTool
                         if (showProgress)
                         {
                             progress += delta;
-                            setProgress(Convert.ToInt32(progress));
+                            SetProgress(Convert.ToInt32(progress));
 
                             var stats = String.Format(
                                 "{0} / {1}",
                                 Utility.FormatDataSize((long)(i + 1) * WRITE_BUFFER_SECTORS * sectorSize),
                                 Utility.FormatDataSize(endStatsSize));
 
-                            setStats(stats);
+                            SetStats(stats);
                         }
                         #endregion Update progress
                     }
@@ -1383,14 +1382,14 @@ namespace SDInstallTool
                             if (showProgress)
                             {
                                 progress += delta;
-                                setProgress(Convert.ToInt32(progress));
+                                SetProgress(Convert.ToInt32(progress));
 
                                 var stats = String.Format(
                                 "{0} / {1}",
                                 Utility.FormatDataSize((fullBuffers + i + 1) * WRITE_BUFFER_SECTORS * sectorSize),
                                 Utility.FormatDataSize(endStatsSize));
 
-                                setStats(stats);
+                                SetStats(stats);
                             }
                             #endregion Update progress
                         }
@@ -1669,12 +1668,12 @@ namespace SDInstallTool
             return result;
         }
 
-        private static void setProgress(int value)
+        private static void SetProgress(int value)
         {
             MainForm.SetProgress(value);
         }
 
-        private static void setStats(String message)
+        private static void SetStats(string message)
         {
             MainForm.SetStats(message);
         }

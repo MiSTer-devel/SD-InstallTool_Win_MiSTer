@@ -277,8 +277,8 @@ namespace SDInstallTool
             buttonRefresh.Enabled = false;
 
             buttonFull.Enabled = false;
-            buttonUpdBoot.Enabled = false;
-            buttonUpdAll.Enabled = false;
+            buttonUpdateBoot.Enabled = false;
+            buttonUpdateAll.Enabled = false;
             buttonWipe.Enabled = false;
 
             textDiskSize.Enabled = false;
@@ -296,8 +296,8 @@ namespace SDInstallTool
 
             // Enable buttons base on conditions
             buttonFull.Enabled = isUpdatePackageValid;
-            buttonUpdBoot.Enabled = isUpdatePackageValid && isDiskUpdatable;
-            buttonUpdAll.Enabled = isUpdatePackageValid && isDiskUpdatable;
+            buttonUpdateBoot.Enabled = isUpdatePackageValid && isDiskUpdatable;
+            buttonUpdateAll.Enabled = isUpdatePackageValid && isDiskUpdatable;
 
             buttonWipe.Enabled = true;
             textDiskSize.Enabled = true;
@@ -423,11 +423,11 @@ namespace SDInstallTool
             // Update UI status
             if (isDiskUpdatable && isUpdatePackageValid)
             {
-                buttonUpdBoot.Enabled = true;
+                buttonUpdateBoot.Enabled = true;
             }
             else
             {
-                buttonUpdBoot.Enabled = false;
+                buttonUpdateBoot.Enabled = false;
             }
 
             //TODO: Remove Debug
@@ -438,6 +438,18 @@ namespace SDInstallTool
 
         void DiskOperationStarted()
         {
+            #region Ensure executed in main thread
+            if (InvokeRequired)
+            {
+                Invoke((MethodInvoker)delegate
+                {
+                    DiskOperationStarted();
+                });
+
+                return;
+            }
+            #endregion Ensure executed in main thread
+
             labelStatus.Text = "Processing...";
 
             // Don't refresh drive statuses until disk operation(s) finished
@@ -449,6 +461,20 @@ namespace SDInstallTool
 
         void DiskOperationFinished()
         {
+            #region Ensure executed in main thread
+            if (InvokeRequired)
+            {
+                Invoke((MethodInvoker)delegate
+                {
+                    DiskOperationFinished();
+                });
+
+                return;
+            }
+            #endregion Ensure executed in main thread
+
+            SetProgress(100);
+
             labelStatus.Text = "Done";
 
             // Start listening for drive statuses again
@@ -539,7 +565,10 @@ namespace SDInstallTool
                     BackgroundWorker worker = new BackgroundWorker();
                     worker.DoWork += delegate
                     {
-                        if (DiskManagement.fullInstall(disk.physicalName))
+                        bool result = DiskManagement.fullInstall(disk.physicalName);
+                        DiskOperationFinished();
+
+                        if (result)
                         {
                             message = string.Format("Full install for disk {0} finished successfully", disk.displayName);
                             ShowMessageBoxTopmost(message, "Operation finished");
@@ -552,7 +581,6 @@ namespace SDInstallTool
                     };
                     worker.RunWorkerCompleted += delegate
                     {
-                        DiskOperationFinished();
                         CheckPartialUpdateCompatible(disk.physicalName, disk.bytesPerSector);
                     };
 
@@ -561,7 +589,7 @@ namespace SDInstallTool
             }
         }
 
-        private void buttonUpdBoot_Click(object sender, EventArgs e)
+        private void buttonUpdateBoot_Click(object sender, EventArgs e)
         {
             var item = (ComboBoxItem)this.comboBoxDrives.SelectedItem;
 
@@ -578,7 +606,10 @@ namespace SDInstallTool
                     BackgroundWorker worker = new BackgroundWorker();
                     worker.DoWork += delegate
                     {
-                        if (DiskManagement.updateBoot(disk.physicalName))
+                        bool result = DiskManagement.updateBoot(disk.physicalName);
+                        DiskOperationFinished();
+
+                        if (result)
                         {
                             message = string.Format("Bootloader update on disk {0} finished successfully", disk.displayName);
                             ShowMessageBoxTopmost(message, "Operation finished");
@@ -591,7 +622,6 @@ namespace SDInstallTool
                     };
                     worker.RunWorkerCompleted += delegate
                     {
-                        DiskOperationFinished();
                         CheckPartialUpdateCompatible(disk.physicalName, disk.bytesPerSector);
                     };
 
@@ -600,7 +630,7 @@ namespace SDInstallTool
             }
         }
 
-        private void buttonUpdAll_Click(object sender, EventArgs e)
+        private void buttonUpdateAll_Click(object sender, EventArgs e)
         {
             var item = (ComboBoxItem)this.comboBoxDrives.SelectedItem;
 
@@ -617,7 +647,10 @@ namespace SDInstallTool
                     BackgroundWorker worker = new BackgroundWorker();
                     worker.DoWork += delegate
                     {
-                        if (DiskManagement.updateAll(disk.physicalName))
+                        bool result = DiskManagement.updateAll(disk.physicalName);
+                        DiskOperationFinished();
+
+                        if (result)
                         {
                             message = string.Format("System update on disk {0} finished successfully", disk.displayName);
                             ShowMessageBoxTopmost(message, "Operation finished");
@@ -630,7 +663,6 @@ namespace SDInstallTool
                     };
                     worker.RunWorkerCompleted += delegate
                     {
-                        DiskOperationFinished();
                         CheckPartialUpdateCompatible(disk.physicalName, disk.bytesPerSector);
                     };
 
@@ -656,22 +688,23 @@ namespace SDInstallTool
                     BackgroundWorker worker = new BackgroundWorker();
                     worker.DoWork += delegate
                     {
-                        if (DiskManagement.wipeDisk(disk.physicalName))
+                        bool result = DiskManagement.wipeDisk(disk.physicalName);
+                        DiskOperationFinished();
+
+                        if (result)
                         {
-                            SetProgress(100);
+                           
                             message = string.Format("{0} wiped successfully", disk.displayName);
                             ShowMessageBoxTopmost(message, "Operation finished");
                         }
                         else
                         {
-                            SetProgress(100);
                             message = string.Format("Unable to wipe {0}", disk.displayName);
                             ShowMessageBoxTopmost(message, "Operation failed");
                         }
                     };
                     worker.RunWorkerCompleted += delegate
                     {
-                        DiskOperationFinished();
                         CheckPartialUpdateCompatible(disk.physicalName, disk.bytesPerSector);
                     };
 
