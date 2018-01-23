@@ -1449,6 +1449,13 @@ namespace SDInstallTool
             return result;
         }
 
+        public enum DiskLayoutType
+        {
+            Unknown = 0,
+            LayoutV1 = 1,
+            LayoutV2 = 2
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -1459,9 +1466,9 @@ namespace SDInstallTool
         /// <remarks>Microsoft Magazine article: https://msdn.microsoft.com/en-us/magazine/dd419661.aspx?f=255&MSPPError=-2147217396#id0070035 </remarks>
         //[HandleProcessCorruptedStateExceptions]
         [SecurityCritical]
-        public static int CheckDiskCompatible(String physicalDiskName, uint bytesPerSector)
+        public static DiskLayoutType GetDiskLayoutScheme(String physicalDiskName, uint bytesPerSector)
         {
-            int result = 0;
+            DiskLayoutType result = DiskLayoutType.Unknown;
 
             // Read MBR from disk into 512 bytes array
             byte[] mbr = new byte[0];
@@ -1562,11 +1569,12 @@ namespace SDInstallTool
                                 (
                                     data.type == PartitionTypeEnum.ExFAT ||
                                     data.type == PartitionTypeEnum.FAT32CHS ||
-                                    data.type == PartitionTypeEnum.FAT32LBA)
+                                    data.type == PartitionTypeEnum.FAT32LBA
                                 )
+                              )
                             {
                                 Logger.Info("Card has old MiSTer layout. Partial update can be applied");
-                                result = 1;
+                                result = DiskLayoutType.LayoutV1;
                             }
                             else
                             {
@@ -1608,8 +1616,7 @@ namespace SDInstallTool
                         #endregion Info Log
                     }
                 }
-                else
-                if (partitions != null && partitions.Count == 2)
+                else if (partitions != null && partitions.Count == 2)
                 {
                     var preloader = partitions[1];
                     var data = partitions[0];
@@ -1630,7 +1637,7 @@ namespace SDInstallTool
                     {
                         #region Info Log
                         Logger.Info("Card has new MiSTer layout. Partial update can be applied");
-                        result = 2;
+                        result = DiskLayoutType.LayoutV2;
 
                         #endregion Info Log
                     }
@@ -1652,7 +1659,7 @@ namespace SDInstallTool
                 {
                     #region Info Log
                     Logger.Info("Card is incompatible with MiSTer");
-                    Logger.Info("At least 3 partitions required. Found only {0}", partitions.Count);
+                    Logger.Info("At least 2 partitions required. Found only {0}", partitions.Count);
                     Logger.Info("Use 'Full Install' option to repartition");
                     #endregion Info Log
                 }

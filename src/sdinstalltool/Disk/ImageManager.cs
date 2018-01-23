@@ -12,8 +12,10 @@ namespace SDInstallTool
     {
         #region Constants
 
+        // U-boot partition image (/files/linux/uboot.img) will be written to preloader partition
+        // All other files (files/*) will be copied to FAT partition without any changes
         public static readonly String files = "files";
-        public static readonly String UbootPartitionFileName = files+"\\linux\\uboot.img";
+        public static readonly String UbootPartitionFileName = Path.Combine(Path.Combine(files, "linux"), "uboot.img");
 
         #endregion
 

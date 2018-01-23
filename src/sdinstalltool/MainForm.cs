@@ -7,6 +7,7 @@ using Microsoft.Win32;
 using SDInstallTool.Detection;
 using SDInstallTool.Helpers;
 using System.Drawing;
+using static SDInstallTool.DiskManagement;
 
 namespace SDInstallTool
 {
@@ -25,7 +26,7 @@ namespace SDInstallTool
         private DriveDetector _driveWatcher;
         private bool isUpdatePackageValid = false;
         private bool isDiskUpdatable = false;
-        private bool isOldLayout = false;
+        private bool isLayoutV1 = false;
         private String currentPhysicalDisk = String.Empty;
 
         private LogForm frmLog = null;
@@ -399,17 +400,18 @@ namespace SDInstallTool
         {
             bool result = false;
             isDiskUpdatable = false;
-            isOldLayout = false;
+            isLayoutV1 = false;
 
             //TODO: Remove Debug
             Logger.Info("CheckPartialUpdateCompatible()...");
 
             try
             {
-                int type = DiskManagement.CheckDiskCompatible(physicalDiskName, bytesPerSector);
-                isDiskUpdatable = (type != 0);
-                isOldLayout = (type != 2);
-                result = (type != 0);
+                DiskLayoutType type = DiskManagement.GetDiskLayoutScheme(physicalDiskName, bytesPerSector);
+                isDiskUpdatable = (type != DiskLayoutType.Unknown);
+                isLayoutV1 = (type == DiskLayoutType.LayoutV1);
+
+                result = isDiskUpdatable;
             }
             catch (Exception e)
             {
@@ -696,9 +698,9 @@ namespace SDInstallTool
 
                 textDiskSize.Text = diskDescriptor.description;
 
-                // Check drive
+                // Check if card eligible for update without disk layout changes
                 CheckPartialUpdateCompatible(diskDescriptor.physicalName, diskDescriptor.bytesPerSector);
-                if (isOldLayout)
+                if (isLayoutV1)
                 {
                     labelStatus.Text = @"Old disk layout. Full install is recommended";
                 }
