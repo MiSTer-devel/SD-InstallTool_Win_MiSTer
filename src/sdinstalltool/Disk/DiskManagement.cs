@@ -7,6 +7,7 @@ using SDInstallTool.Helpers;
 using System.Text;
 using System.IO;
 using System.Security;
+using System.Threading;
 
 namespace SDInstallTool
 {
@@ -420,11 +421,11 @@ namespace SDInstallTool
                     var volume = disk.volumes[idx];
                     SafeFileHandle hVolume = null;
 
-                    if (!String.IsNullOrEmpty(volume.mountPoint))
+                    if (!string.IsNullOrEmpty(volume.mountPoint))
                     {
-                        // Volume is mounted, so need to dismount first
-                        hVolume = openDiskWin32(getVolumeName(volume.mountPoint));
+                        hVolume = Win32HandleUtils.GetVolumeHandle(volume.mountPoint, FileAccess.Read, ShareMode.ReadWriteDelete);
 
+                        // Volume is mounted, so need to dismount first
                         if (isVolumeMountedWin32(hVolume))
                         {
                             dismountVolumeWin32(hVolume);
@@ -435,10 +436,13 @@ namespace SDInstallTool
                     else
                     {
                         // Volume has no mount point, so just lock it
-                        hVolume = openDiskWin32(volume.GUID);
+                        hVolume = Win32HandleUtils.GetVolumeHandle(volume.GUID, FileAccess.Read, ShareMode.ReadWriteDelete);
                         lockVolumeWin32(hVolume);
                     }
 
+                    // Increase reference count to prevent disposal
+                    bool addRefResult = false;
+                    hVolume.DangerousAddRef(ref addRefResult);
                     volume.hVolume = hVolume;
 
                     // Actualize object in a collection
@@ -464,11 +468,12 @@ namespace SDInstallTool
                     if (volume.hVolume != null && !volume.hVolume.IsInvalid)
                     {
                         unlockVolumeWin32(volume.hVolume);
-                        volume.hVolume.Dispose();
+                        volume.hVolume.DangerousRelease();
+                        volume.hVolume.Close();
                     }
                     else
                     {
-                        using (SafeFileHandle hVolume = openDiskWin32(volume.GUID))
+                        using (SafeFileHandle hVolume = Win32HandleUtils.GetVolumeHandle(volume.GUID, FileAccess.Read, ShareMode.ReadWriteDelete))
                         {
                             if (hVolume != null && !hVolume.IsInvalid)
                             {
@@ -639,60 +644,43 @@ namespace SDInstallTool
         {
             String result = String.Empty;
 
-            String mountPoint = mountVolume(volumeGUID);
+            bool res = false;
 
-            if (!String.IsNullOrEmpty(mountPoint))
+            char driveLetter = '\0';
+            string mountPoint = mountVolume(volumeGUID);
+            if (!string.IsNullOrEmpty(mountPoint))
+                driveLetter = mountPoint[0];
+
+            if (driveLetter != '\0')
             {
-                bool res = false;
+                String uuid = Utility.PurifyGUIDForVolume(volumeGUID);
+                if (!String.IsNullOrEmpty(uuid))
+                {
+                    res = PartitionManagement.formatExFATPartitionWMI(volumeGUID);
+                    if (res)
+                    {
+                        result = mountPoint;
+                    }
+                }
 
-                #region WMI formatting (disabled)
-                /*
                 #region Info Log
-                Logger.Info("Trying to format data partition using WMI...");
-                #endregion
-
-                result = PartitionManagement.formatExFATPartitionWMI(volumeGUID);
-
-                #region Info Log
-                if (result)
+                if (res)
                 {
                     Logger.Info("OK");
                 }
                 else
                 {
-                    Logger.Info("Failed");
+                    Logger.Info("Format failed");
                 }
                 #endregion
-                */
-                #endregion
-
-                if (!res)
-                {
-                    #region Info Log
-                    Logger.Info("Trying to format data partition using VDS...");
-                    #endregion
-
-                    res = PartitionManagement.formatExFATPartitionVDS(volumeGUID);
-                    if (res)
-                    {
-                        result = mountPoint;
-                    }
-
-                    #region Info Log
-                    if (res)
-                    {
-                        Logger.Info("OK");
-                    }
-                    else
-                    {
-                        Logger.Info("Failed");
-                    }
-                    #endregion
-                }
-
-                // Flush all pending changes to the volume
-                flushVolumeWin32(volumeGUID);
             }
+            else
+            {
+                Logger.Error("Unable to mount volume {0}", volumeGUID);
+            }
+
+            // Flush all pending changes to the volume
+            flushVolumeWin32(volumeGUID);
 
             return result;
         }

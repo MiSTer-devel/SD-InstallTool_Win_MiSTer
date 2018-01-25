@@ -13,9 +13,16 @@ namespace SDInstallTool
 
     public static class NativeMethods 
     {
+        internal const uint CREATE_NEW = 1;
+        internal const uint CREATE_ALWAYS = 2;
         internal const uint OPEN_EXISTING = 3;
-        internal const uint GENERIC_WRITE = (0x40000000);
+        internal const uint OPEN_ALWAYS = 3;
+        internal const uint TRUNCATE_EXISTING = 5;
+
         internal const uint GENERIC_READ = 0x80000000;
+        internal const uint GENERIC_WRITE = 0x40000000;
+        internal const uint GENERIC_EXECUTE = 0x20000000;
+        internal const uint GENERIC_ALL = 0x10000000;
 
         internal const uint FSCTL_LOCK_VOLUME = 0x00090018;
         internal const uint FSCTL_UNLOCK_VOLUME = 0x0009001c;

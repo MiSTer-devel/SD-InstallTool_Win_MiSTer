@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace SDInstallTool
 {
@@ -39,6 +40,21 @@ namespace SDInstallTool
                 dblSByte = value / 1024.0;
             }
             result = $"{dblSByte:0.##}{Suffix[i]}";
+
+            return result;
+        }
+
+        public static String PurifyGUIDForVolume(String volumeGUID)
+        {
+            Regex PatternGUID = new Regex(@"^.*([0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}).*$", RegexOptions.Compiled);
+
+            String result = String.Empty;
+
+            Match match = PatternGUID.Match(volumeGUID);
+            if (match.Success && match.Groups.Count >= 2)
+            {
+                result = match.Groups[1].Value;
+            }
 
             return result;
         }

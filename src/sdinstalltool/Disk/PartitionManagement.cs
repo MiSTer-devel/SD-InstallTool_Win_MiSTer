@@ -428,148 +428,43 @@ namespace SDInstallTool
         {
             bool result = false;
 
+            if (!volumeGUID.EndsWith(@"\"))
+                volumeGUID += @"\";
+
             #region Info log
             var infoMessage = String.Format("Starting ExFAT formatting for partition: {0} ...", volumeGUID);
             Logger.Info(infoMessage);
             #endregion Info log
 
-            var volume = getDiskVolumeByGUIDWMI(volumeGUID);
-
-            // Format volume with
-            // uint32 Format(
-            //    [in] string FileSystem = "EXFAT",
-            //    [in] boolean QuickFormat = true,
-            //    [in] uint32 ClusterSize = 32768,
-            //    [in] string Label = "MiSTer Data",
-            //    [in] boolean EnableCompression = false
-            // );
-            UInt32 resultCode = Convert.ToUInt32(volume.InvokeMethod("Format", new object[] { "EXFAT", true, 4096, "MiSTer Data", false }));
-
-            #region Analyze result
-
-            var errorMessage = String.Empty;
-
-            // Analyze return codes https://msdn.microsoft.com/en-us/library/aa390432(v=vs.85).aspx
-            switch (resultCode)
-            {
-                case 0:
-                    result = true;
-                    errorMessage = "OK";
-                    break;
-                case 1:
-                    // Unsupported file system
-                    errorMessage = "Unsupported file system";
-                    break;
-                case 2:
-                    // Incompatible media in drive
-                    errorMessage = "Incompatible media in drive";
-                    break;
-                case 3:
-                    // Access denied
-                    errorMessage = "Access denied";
-                    break;
-                case 4:
-                    // Call cancelled
-                    errorMessage = "Call cancelled";
-                    break;
-                case 5:
-                    // Call cancellation request too late
-                    errorMessage = "Call cancellation request too late";
-                    break;
-                case 6:
-                    // Volume write protected
-                    errorMessage = "Volume write protected";
-                    break;
-                case 7:
-                    // Volume lock failed
-                    errorMessage = "Volume lock failed";
-                    break;
-                case 8:
-                    // Unable to quick format
-                    errorMessage = "Unable to quick format";
-                    break;
-                case 9:
-                    // Input/Output(I/O) error
-                    errorMessage = "I/O error";
-                    break;
-                case 10:
-                    // Invalid volume label
-                    errorMessage = "Invalid volume label";
-                    break;
-                case 11:
-                    // No media in drive
-                    errorMessage = "No media in drive";
-                    break;
-                case 12:
-                    // Volume is too small
-                    errorMessage = "Volume is too small";
-                    break;
-                case 13:
-                    // Volume is too large
-                    errorMessage = "Volume is too large";
-                    break;
-                case 14:
-                    // Volume is not mounted
-                    errorMessage = "Volume is not mounted";
-                    break;
-                case 15:
-                    // Cluster size is too small
-                    errorMessage = "Cluster size is too small";
-                    break;
-                case 16:
-                    // Cluster size is too large
-                    errorMessage = "Cluster size is too large";
-                    break;
-                case 17:
-                    // Cluster size is beyond 32 bits
-                    errorMessage = "Cluster size is beyond 32 bits";
-                    break;
-                case 18:
-                    // Unknown error
-                    errorMessage = "Unknown error";
-                    break;
-                default:
-                    errorMessage = "Unrecognized error code";
-                    break;
-            }
-
-            if (result)
-            {
-                Logger.Info(errorMessage);
-            }
-            else
-            {
-                Logger.Error(errorMessage);
-            }
-
-            #endregion Analyze result
-
-            return result;
-        }
-
-        public static bool formatFAT32PartitionVDS(String volumeGUID)
-        {
-            bool result = false;
-
-            var volume = getDiskVolumeByGUIDWMI(volumeGUID);
+            ManagementObject volume = getDiskVolumeByGUIDWMI(volumeGUID);
             if (volume != null)
             {
-                var driveLetter = volume["DriveLetter"].ToString()[0];
-                result = VDSManager.format(driveLetter, "FAT32", 16384, "MiSTer Data");
-            }
+                try
+                {
+                    var completed = false;
+                    var watcher = new ManagementOperationObserver();
 
-            return result;
-        }
+                    watcher.Completed += (sender, args) =>
+                    {
+                        Logger.Info("Volume format completed " + args.Status);
+                        completed = true;
+                        result = true;
+                    };
+                    watcher.Progress += (sender, args) =>
+                    {
+                        Logger.Info("Volume format in progress " + args.Current);
+                    };
 
-        public static bool formatExFATPartitionVDS(String volumeGUID)
-        {
-            bool result = false;
+                    volume.InvokeMethod(watcher, "Format", new object[] { "EXFAT", true, 32768, "MiSTer Data", false });
 
-            var volume = getDiskVolumeByGUIDWMI(volumeGUID);
-            if (volume != null)
-            {
-                var driveLetter = volume["DriveLetter"].ToString()[0];
-                result = VDSManager.format(driveLetter, "EXFAT", 32768, "MiSTer Data");
+                    while (!completed)
+                    {
+                        System.Threading.Thread.Sleep(200);
+                    }
+                }
+                catch
+                {
+                }
             }
 
             return result;

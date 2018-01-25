@@ -1,11 +1,13 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 using SDInstallTool.Helpers;
 using System.Text.RegularExpressions;
 using System.Linq;
+using System.ComponentModel;
 
 namespace SDInstallTool
 {
@@ -754,13 +756,16 @@ namespace SDInstallTool
 
         public static bool isVolumeMountedWin32(String mountPoint)
         {
-            SafeFileHandle hVolume = openDiskWin32(mountPoint);
+            SafeFileHandle hVolume = Win32HandleUtils.GetVolumeHandle(mountPoint, FileAccess.Read, ShareMode.ReadWriteDelete);
 
             bool result = isVolumeMountedWin32(hVolume);
 
             return result;
         }
 
+        // Checks whether volume is mounted
+        // Important: Volume handle should be opened with FileAccess.Read and Sharemode.ReadWrite.
+        // Otherwise FSCTL_IS_VOLUME_MOUNTED will fail with "invalid parameter error"
         public static bool isVolumeMountedWin32(SafeFileHandle hVolume)
         {
             bool result = false;
@@ -781,6 +786,9 @@ namespace SDInstallTool
 
                 if (!result)
                 {
+                    int errorCode = Marshal.GetLastWin32Error();
+                    Win32Exception exception = new Win32Exception(errorCode);
+
                     Logger.LogWin32Error();
                 }
             }

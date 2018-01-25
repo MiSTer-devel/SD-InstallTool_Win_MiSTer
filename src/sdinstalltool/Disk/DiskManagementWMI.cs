@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Management;
 using SDInstallTool.Helpers;
+using System.IO;
 
 namespace SDInstallTool
 {

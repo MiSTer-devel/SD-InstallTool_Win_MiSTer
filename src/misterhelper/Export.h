@@ -15,4 +15,11 @@ extern "C"
 		UINT32 nAllocationUnitSize,
 		LPWSTR pwszLabel
 	);
+
+	__declspec(dllexport) BOOL FormatVolume(
+		LPWSTR volumeID,
+		LPWSTR pwszFileSystemName,
+		UINT32 nAllocationUnitSize,
+		LPWSTR pwszLabel
+	);
 }
