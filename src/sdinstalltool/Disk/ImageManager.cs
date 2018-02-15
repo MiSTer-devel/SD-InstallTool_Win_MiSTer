@@ -105,7 +105,7 @@ namespace SDInstallTool
             DirectoryInfo diSource = new DirectoryInfo(sourceDirectory);
             DirectoryInfo diTarget = new DirectoryInfo(targetDirectory);
 
-            bool result =CopyAll(diSource, diTarget);
+            bool result = CopyAll(diSource, diTarget);
 
             return result;
         }
