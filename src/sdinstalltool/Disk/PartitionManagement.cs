@@ -462,8 +462,9 @@ namespace SDInstallTool
                         System.Threading.Thread.Sleep(200);
                     }
                 }
-                catch
+                catch (Exception e)
                 {
+                    Logger.Error(e.Message);
                 }
             }
 

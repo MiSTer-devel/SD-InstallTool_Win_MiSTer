@@ -271,11 +271,8 @@ namespace SDInstallTool
 
                             if (!String.IsNullOrEmpty(mountPoint))
                             {
-                                // We treat as success only when partition successfully formatted and has letter assigned
-                                result = true;
-
-                                // Step 7 (Optional): copy Linux and/or MiSTer data files to Data partition
-                                ImageManager.copyUpdateFiles(mountPoint);
+                                // Step 7: copy Linux and/or MiSTer data files to Data partition
+                                result = ImageManager.copyUpdateFiles(mountPoint);
                             }
 
                             SetProgress(100);
@@ -358,11 +355,8 @@ namespace SDInstallTool
 
                 if (!String.IsNullOrEmpty(mountPoint))
                 {
-                    // We treat as success only when partition successfully formatted and has letter assigned
-                    result = true;
-
-                    // Step 7 (Optional): copy Linux and/or MiSTer data files to Data partition
-                    ImageManager.copyUpdateFiles(mountPoint);
+                    // Step 7: copy Linux and/or MiSTer data files to Data partition
+                    result = ImageManager.copyUpdateFiles(mountPoint);
                 }
 
                 SetProgress(100);
@@ -1497,18 +1491,25 @@ namespace SDInstallTool
             if (!String.IsNullOrEmpty(dataVolumeGUID))
             {
                 var volumeWMI = getVolumeByGUIDWMI(dataVolumeGUID);
-                var filesystem = volumeWMI["FileSystem"].ToString().ToUpper();
-
-                switch (filesystem)
+                if (volumeWMI != null)
                 {
-                    case "FAT32":
-                        filesystemType = PartitionTypeEnum.FAT32CHS;
-                        break;
-                    case "EXFAT":
-                        filesystemType = PartitionTypeEnum.ExFAT;
-                        break;
-                    default:
-                        break;
+                    var filesystemWMI = volumeWMI["FileSystem"];
+                    if (filesystemWMI != null)
+                    {
+                        string filesystem = filesystemWMI.ToString().ToUpper();
+
+                        switch (filesystem)
+                        {
+                            case "FAT32":
+                                filesystemType = PartitionTypeEnum.FAT32CHS;
+                                break;
+                            case "EXFAT":
+                                filesystemType = PartitionTypeEnum.ExFAT;
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                 }
             }
 

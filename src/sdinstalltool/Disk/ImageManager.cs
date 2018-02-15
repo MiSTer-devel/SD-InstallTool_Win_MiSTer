@@ -100,43 +100,42 @@ namespace SDInstallTool
             return result;
         }
 
-        public static void Copy(string sourceDirectory, string targetDirectory)
+        public static bool Copy(string sourceDirectory, string targetDirectory)
         {
             DirectoryInfo diSource = new DirectoryInfo(sourceDirectory);
             DirectoryInfo diTarget = new DirectoryInfo(targetDirectory);
 
-            CopyAll(diSource, diTarget);
+            bool result =CopyAll(diSource, diTarget);
+
+            return result;
         }
 
-        public static void CopyAll(DirectoryInfo source, DirectoryInfo target)
+        public static bool CopyAll(DirectoryInfo source, DirectoryInfo target)
         {
-            // Replicate directory structure
-            Directory.CreateDirectory(target.FullName);
-            foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
+            bool result = false;
+
+            try
             {
-                DirectoryInfo nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name);
+                // Replicate directory structure
+                Directory.CreateDirectory(target.FullName);
+                foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
+                {
+                    DirectoryInfo nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name);
+                }
+
+                CustomFileCopier copier = new CustomFileCopier();
+                copier.SetFolders(source.FullName, target.FullName);
+                copier.SetProgressLimits(20, 100);
+                copier.CopyData();
+
+                result = true;
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e.Message);
             }
 
-            CustomFileCopier copier = new CustomFileCopier();
-            copier.SetFolders(source.FullName, target.FullName);
-            copier.SetProgressLimits(20, 100);
-            copier.CopyData();
-
-            /*
-            // Copy each file into the new directory.
-            foreach (FileInfo fi in source.GetFiles())
-            {
-                Logger.Info("Copying "+ Path.Combine(target.FullName, fi.Name));
-                fi.CopyTo(Path.Combine(target.FullName, fi.Name), true);
-            }
-
-            // Copy each subdirectory using recursion.
-            foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
-            {
-                DirectoryInfo nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name);
-                CopyAll(diSourceSubDir, nextTargetSubDir);
-            }
-            */
+            return result;
         }
 
         public static bool checkUpdateFiles()
@@ -157,8 +156,7 @@ namespace SDInstallTool
 
             if (Directory.Exists(srcPath))
             {
-                Copy(srcPath, dstPath);
-                result = true;
+                result = Copy(srcPath, dstPath);
             }
 
             return result;
