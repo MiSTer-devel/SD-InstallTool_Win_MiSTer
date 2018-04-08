@@ -149,6 +149,8 @@ namespace SDInstallTool
         public static bool copyUpdateFiles(String volumePath)
         {
             bool result = false;
+            if (!volumePath.EndsWith("\\"))
+                volumePath = volumePath + "\\";
 
             var currentFolder = Directory.GetCurrentDirectory();
             var srcPath = Path.Combine(currentFolder, files);

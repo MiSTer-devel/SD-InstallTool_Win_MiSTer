@@ -5,6 +5,11 @@ using System.Linq;
 using System.Management;
 using System.Text.RegularExpressions;
 using SDInstallTool.Helpers;
+using Microsoft.Win32.SafeHandles;
+using System.Threading;
+using System.Diagnostics;
+using System.Text;
+using System.IO;
 
 namespace SDInstallTool
 {
@@ -106,6 +111,8 @@ namespace SDInstallTool
         #region Constants
 
         static readonly Regex PatternGUID = new Regex(@"^.*([0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}).*$", RegexOptions.Compiled);
+
+        static readonly string DiskFormatPattern = "{0} /FS:exFAT /Y /V:MiSTer_Data /Q";
 
         #endregion
 
@@ -424,6 +431,76 @@ namespace SDInstallTool
             return result;
         }
 
+        public static bool formatExFATPartitionSystem(String mountPoint)
+        {
+            bool result = false;
+
+            // Initial validation
+            if (String.IsNullOrEmpty(mountPoint) || mountPoint.Contains("C:"))
+            {
+                Logger.Error("Unable to format disk with letter: '{0}'", mountPoint);
+                return result;
+            }
+            else
+            {
+                mountPoint = mountPoint.Substring(0, 2);
+            }
+
+            string formatExecutable = Path.Combine(Environment.SystemDirectory, "format.com");
+            if (!File.Exists(formatExecutable))
+            {
+                Logger.Error("Executable: {0} not found");
+                return result;
+            }
+
+            try
+            {
+                StringBuilder sbError = new StringBuilder();
+                StringBuilder sbOutput = new StringBuilder();
+
+                Process process = new Process();
+                ProcessStartInfo startInfo = new ProcessStartInfo();
+                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                startInfo.CreateNoWindow = true;
+                startInfo.UseShellExecute = false;
+                startInfo.RedirectStandardError = true;
+                startInfo.RedirectStandardOutput = true;
+                startInfo.FileName = formatExecutable;
+                startInfo.Arguments = String.Format(DiskFormatPattern, mountPoint);
+                process.StartInfo = startInfo;
+           
+                process.Start();
+                process.ErrorDataReceived += (sender, e) => sbError.AppendLine(e.Data);
+                process.OutputDataReceived += (sender, e) => sbOutput.AppendLine(e.Data);
+                process.BeginErrorReadLine();
+                process.BeginOutputReadLine();
+                process.WaitForExit(20 * 1000); // Set 20 secs. timeout
+
+                // ExitCode throws if the process is hanging
+                int resCode = process.ExitCode;
+                if (resCode == 0)
+                {
+                    result = true;
+
+                    Logger.Info("Format finished successfully");
+                }
+                else
+                {
+                    Logger.Error("Format error: \n{0}", sbError.ToString());
+                }
+            }
+            catch (InvalidOperationException ioex)
+            {
+                Logger.Error("Format process hangs. Unable to complete partition format. {0}", ioex.Message);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Format process failed. {0}", ex.Message);
+            }
+
+            return result;
+        }
+
         public static bool formatExFATPartitionWMI(String volumeGUID)
         {
             bool result = false;
@@ -435,32 +512,174 @@ namespace SDInstallTool
             var infoMessage = String.Format("Starting ExFAT formatting for partition: {0} ...", volumeGUID);
             Logger.Info(infoMessage);
             #endregion Info log
-
+            
             ManagementObject volume = getDiskVolumeByGUIDWMI(volumeGUID);
             if (volume != null)
             {
                 try
                 {
-                    var completed = false;
-                    var watcher = new ManagementOperationObserver();
+                    ManagementBaseObject inParams;
+                    ManagementBaseObject output;
 
-                    watcher.Completed += (sender, args) =>
-                    {
-                        Logger.Info("Volume format completed " + args.Status);
-                        completed = true;
-                        result = true;
-                    };
-                    watcher.Progress += (sender, args) =>
-                    {
-                        Logger.Info("Volume format in progress " + args.Current);
-                    };
+                    #region Dismount
+                    inParams = volume.GetMethodParameters("Dismount");
+                    inParams["Force"] = true;
+                    inParams["Permanent"] = false;
 
-                    volume.InvokeMethod(watcher, "Format", new object[] { "EXFAT", true, 32768, "MiSTer Data", false });
-
-                    while (!completed)
+                    output = volume.InvokeMethod("Dismount", inParams, null);
+                    if (output != null)
                     {
-                        System.Threading.Thread.Sleep(200);
+                        string message = String.Empty;
+                        uint retCode = UInt32.Parse(output["ReturnValue"].ToString());
+                        switch (retCode)
+                        {
+                            case 0:
+                                message = "Success";
+                                break;
+                            case 1:
+                                message = "Access Denied";
+                                break;
+                            case 2:
+                                message = "Volume Has Mount Points";
+                                break;
+                            case 3:
+                                message = "Volume Does Not Support The No-Autoremount State";
+                                break;
+                            case 4:
+                                message = "Force Option Required";
+                                break;
+                            default:
+                                message = "Unknown error";
+                                break;
+                        }
+
+                        Logger.Info("Volume dismount returned: {0}", message);
                     }
+                    #endregion Dismount
+
+                    #region Format
+
+                    inParams = volume.GetMethodParameters("Format");
+                    inParams["FileSystem"] = "EXFAT";
+                    inParams["QuickFormat"] = true;
+                    inParams["ClusterSize"] = 32768;
+                    inParams["Label"] = "MiSTer Data";
+                    inParams["EnableCompression"] = false;
+
+                    int iterations = 10;
+                    do
+                    {
+                        uint retCode = 0;
+                        output = volume.InvokeMethod("Format", inParams, null);
+                        if (output != null)
+                        {
+                            string message = String.Empty;
+                            retCode = UInt32.Parse(output["ReturnValue"].ToString());
+                            switch (retCode)
+                            {
+                                case 0:
+                                    message = "Success";
+                                    break;
+                                case 1:
+                                    message = "Unsupported file system";
+                                    break;
+                                case 2:
+                                    message = "Incompatible media in drive";
+                                    break;
+                                case 3:
+                                    message = "Access denied";
+                                    break;
+                                case 4:
+                                    message = "Call canceled";
+                                    break;
+                                case 5:
+                                    message = "Call cancellation request too late";
+                                    break;
+                                case 6:
+                                    message = "Volume write protected";
+                                    break;
+                                case 7:
+                                    message = "Volume lock failed";
+                                    break;
+                                case 8:
+                                    message = "Unable to quick format";
+                                    break;
+                                case 9:
+                                    message = "Input/Output (I/O) error";
+                                    break;
+                                case 10:
+                                    message = "Invalid volume label";
+                                    break;
+                                case 11:
+                                    message = "No media in drive";
+                                    break;
+                                case 12:
+                                    message = "Volume is too small";
+                                    break;
+                                case 13:
+                                    message = "Volume is too large";
+                                    break;
+                                case 14:
+                                    message = "Volume is not mounted";
+                                    break;
+                                case 15:
+                                    message = "Cluster size is too small";
+                                    break;
+                                case 16:
+                                    message = "Cluster size is too large";
+                                    break;
+                                case 17:
+                                    message = "Cluster size is beyond 32 bits";
+                                    break;
+                                default:
+                                    message = "Unknown error";
+                                    break;
+                            }
+
+                            if (retCode == 0)
+                                result = true;
+
+                            Logger.Info("Volume format returned: {0}", message);
+                        }
+
+                        if (retCode == 0)
+                        {
+                            result = true;
+                            break;
+                        }
+
+                        Thread.Sleep(200);
+                        iterations--;
+                    } while (iterations > 0);
+                    #endregion Format
+
+                    #region Mount
+                    if (result)
+                    {
+                        inParams = volume.GetMethodParameters("Mount");
+                        output = volume.InvokeMethod("Mount", inParams, null);
+
+                        if (output != null)
+                        {
+                            string message = String.Empty;
+                            uint retCode = UInt32.Parse(output["ReturnValue"].ToString());
+                            switch (retCode)
+                            {
+                                case 0:
+                                    message = "Success";
+                                    break;
+                                case 1:
+                                    message = "Access Denied";
+                                    break;
+                                default:
+                                    message = "Unknown error";
+                                    break;
+                            }
+
+                            Logger.Info("Volume mount returned: {0}", message);
+                        }
+                    }
+                    #endregion Mount
                 }
                 catch (Exception e)
                 {

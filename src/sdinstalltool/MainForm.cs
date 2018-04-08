@@ -42,7 +42,6 @@ namespace SDInstallTool
 
             MessageBoxEx.Owner = this.Handle;
 
-
             ResetProgress();
             CheckUpdatePackage();
 
@@ -294,7 +293,7 @@ namespace SDInstallTool
 
             buttonRefresh.Enabled = true;
 
-            // Enable buttons base on conditions
+            // Enable buttons based on conditions
             buttonFull.Enabled = isUpdatePackageValid;
             buttonUpdateBoot.Enabled = isUpdatePackageValid && isDiskUpdatable;
             buttonUpdateAll.Enabled = isUpdatePackageValid && isDiskUpdatable;
@@ -562,6 +561,7 @@ namespace SDInstallTool
                 {
                     DiskOperationStarted();
 
+                    // Run operation in a background worker thread
                     BackgroundWorker worker = new BackgroundWorker();
                     worker.DoWork += delegate
                     {
@@ -759,6 +759,11 @@ namespace SDInstallTool
             {
                 frmLog.Show();
             }
+        }
+
+        private void cancelOperationToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
         }
 
         #endregion

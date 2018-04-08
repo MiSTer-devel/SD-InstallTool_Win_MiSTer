@@ -49,6 +49,7 @@
             this.buttonWipe = new System.Windows.Forms.Button();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.buttonUpdateAll = new System.Windows.Forms.Button();
+            this.cancelOperationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.statusStrip1.SuspendLayout();
             this.menuStripMain.SuspendLayout();
             this.groupBox1.SuspendLayout();
@@ -136,7 +137,8 @@
             // optionsToolStripMenuItem
             // 
             this.optionsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.showLogWindowToolStripMenuItem});
+            this.showLogWindowToolStripMenuItem,
+            this.cancelOperationToolStripMenuItem});
             this.optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
             this.optionsToolStripMenuItem.Size = new System.Drawing.Size(61, 20);
             this.optionsToolStripMenuItem.Text = "Options";
@@ -144,7 +146,7 @@
             // showLogWindowToolStripMenuItem
             // 
             this.showLogWindowToolStripMenuItem.Name = "showLogWindowToolStripMenuItem";
-            this.showLogWindowToolStripMenuItem.Size = new System.Drawing.Size(173, 22);
+            this.showLogWindowToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
             this.showLogWindowToolStripMenuItem.Text = "Show Log Window";
             this.showLogWindowToolStripMenuItem.Click += new System.EventHandler(this.showLogWindowToolStripMenuItem_Click);
             // 
@@ -199,10 +201,10 @@
             this.buttonFull.UseVisualStyleBackColor = true;
             this.buttonFull.Click += new System.EventHandler(this.buttonFull_Click);
             // 
-            // buttonUpdBoot
+            // buttonUpdateBoot
             // 
             this.buttonUpdateBoot.Location = new System.Drawing.Point(97, 148);
-            this.buttonUpdateBoot.Name = "buttonUpdBoot";
+            this.buttonUpdateBoot.Name = "buttonUpdateBoot";
             this.buttonUpdateBoot.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
             this.buttonUpdateBoot.Size = new System.Drawing.Size(80, 23);
             this.buttonUpdateBoot.TabIndex = 18;
@@ -221,16 +223,24 @@
             this.buttonWipe.UseVisualStyleBackColor = true;
             this.buttonWipe.Click += new System.EventHandler(this.buttonWipe_Click);
             // 
-            // buttonUpdAll
+            // buttonUpdateAll
             // 
             this.buttonUpdateAll.Location = new System.Drawing.Point(187, 148);
-            this.buttonUpdateAll.Name = "buttonUpdAll";
+            this.buttonUpdateAll.Name = "buttonUpdateAll";
             this.buttonUpdateAll.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
             this.buttonUpdateAll.Size = new System.Drawing.Size(123, 23);
             this.buttonUpdateAll.TabIndex = 20;
             this.buttonUpdateAll.Text = "Update Boot+Files";
             this.buttonUpdateAll.UseVisualStyleBackColor = true;
             this.buttonUpdateAll.Click += new System.EventHandler(this.buttonUpdateAll_Click);
+            // 
+            // cancelOperationToolStripMenuItem
+            // 
+            this.cancelOperationToolStripMenuItem.Enabled = false;
+            this.cancelOperationToolStripMenuItem.Name = "cancelOperationToolStripMenuItem";
+            this.cancelOperationToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.cancelOperationToolStripMenuItem.Text = "Cancel operation";
+            this.cancelOperationToolStripMenuItem.Click += new System.EventHandler(this.cancelOperationToolStripMenuItem_Click);
             // 
             // MainForm
             // 
@@ -287,6 +297,7 @@
         private System.Windows.Forms.ToolStripMenuItem showLogWindowToolStripMenuItem;
         private System.Windows.Forms.ToolStripStatusLabel labelStats;
         private System.Windows.Forms.Button buttonUpdateAll;
+        private System.Windows.Forms.ToolStripMenuItem cancelOperationToolStripMenuItem;
     }
 }
 

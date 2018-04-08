@@ -88,6 +88,25 @@ namespace SDInstallTool
             return handle;
         }
 
+        /// <summary>
+        /// Converts mount point (drive letter) to direct access mount point
+        /// If mountPoint = 'E:'
+        /// Result = '\\.\E:'
+        /// </summary>
+        /// <param name="mountPoint">Mountpoint as driveletter with colon. Ex: 'E:'</param>
+        /// <returns></returns>
+        public static string MountPointToDirectMountPoint(string mountPoint)
+        {
+            string result = string.Empty;
+
+            if (!String.IsNullOrEmpty(mountPoint))
+            {
+                result = String.Format(@"\\.\{0}", mountPoint);
+            }
+
+            return result;
+        }
+
         private static uint GetDesiredAccess(FileAccess access)
         {
             switch (access)

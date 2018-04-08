@@ -8,6 +8,7 @@ using SDInstallTool.Helpers;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.ComponentModel;
+using System.Threading;
 
 namespace SDInstallTool
 {
@@ -244,7 +245,7 @@ namespace SDInstallTool
         #region Win32 disk access methods
 
         #region openDiskWin32
-        private static SafeFileHandle openDiskWin32(String physicalDiskName)
+        public static SafeFileHandle openDiskWin32(String physicalDiskName)
         {
             SafeFileHandle result = CreateFile(
                 physicalDiskName,
@@ -258,7 +259,21 @@ namespace SDInstallTool
             return result;
         }
 
-        private static SafeFileHandle openDiskWin32ReadOnly(String physicalDiskName)
+        public static SafeFileHandle openDiskWin32Exclusive(String physicalDiskName)
+        {
+            SafeFileHandle result = CreateFile(
+                physicalDiskName,
+                NativeMethods.GENERIC_READ | NativeMethods.GENERIC_WRITE,
+                NativeMethods.FILE_SHARE_NONE,
+                IntPtr.Zero,
+                NativeMethods.OPEN_EXISTING,
+                NativeMethods.FILE_ATTRIBUTE_NORMAL,
+                IntPtr.Zero);
+
+            return result;
+        }
+
+        public static SafeFileHandle openDiskWin32ReadOnly(String physicalDiskName)
         {
             SafeFileHandle result = CreateFile(
                 physicalDiskName,
@@ -272,7 +287,7 @@ namespace SDInstallTool
             return result;
         }
 
-        private static SafeFileHandle openDiskWinExclusive32(String physicalDiskName)
+        public static SafeFileHandle openDiskWinExclusive32(String physicalDiskName)
         {
             SafeFileHandle result = CreateFile(
                 physicalDiskName,
@@ -286,7 +301,7 @@ namespace SDInstallTool
             return result;
         }
 
-        private static SafeFileHandle openDiskNoBufferingWin32(String physicalDiskName)
+        public static SafeFileHandle openDiskNoBufferingWin32(String physicalDiskName)
         {
             SafeFileHandle result = CreateFile(
                 physicalDiskName,
@@ -304,12 +319,26 @@ namespace SDInstallTool
 
         #region openVolumeWin32
 
-        private static SafeFileHandle openVolumeWin32(String volumeName)
+        public static SafeFileHandle openVolumeWin32(String volumeName)
         {
             SafeFileHandle result = CreateFile(
                 volumeName,
                 NativeMethods.GENERIC_READ | NativeMethods.GENERIC_WRITE,
                 NativeMethods.FILE_SHARE_READ | NativeMethods.FILE_SHARE_WRITE,
+                IntPtr.Zero,
+                NativeMethods.OPEN_EXISTING,
+                NativeMethods.FILE_ATTRIBUTE_NORMAL,
+                IntPtr.Zero);
+
+            return result;
+        }
+
+        public static SafeFileHandle openVolumeWin32Exclusive(String volumeName)
+        {
+            SafeFileHandle result = CreateFile(
+                volumeName,
+                NativeMethods.GENERIC_READ | NativeMethods.GENERIC_WRITE,
+                NativeMethods.FILE_SHARE_NONE,
                 IntPtr.Zero,
                 NativeMethods.OPEN_EXISTING,
                 NativeMethods.FILE_ATTRIBUTE_NORMAL,
@@ -519,19 +548,44 @@ namespace SDInstallTool
 
             return result;
         }
-        
+
         #endregion getVolumeNameForVolumeMountPointWin32
 
         #region lockVolumeWin32
 
-        private static bool lockVolumeWin32(String volumeName)
+        /// <summary>
+        /// Try to obtain the lock within 2 seconds (40 iterations with 40ms pause between)
+        /// </summary>
+        /// <param name="hVolume">Volume or Disk handle to obtain lock on</param>
+        /// <returns></returns>
+        public static bool lockVolumeWin32WithTimeout(SafeFileHandle hVolume)
         {
-            bool result = lockVolumeWin32(openDiskWin32(volumeName));
+            bool result = false;
+
+            int iterations = 0;
+            do
+            {
+                if (lockVolumeWin32(hVolume))
+                {
+                    result = true;
+                    break;
+                }
+
+                Thread.Sleep(50);
+
+                iterations++;
+            } while (iterations < 40);
 
             return result;
         }
 
-        private static bool lockVolumeWin32(SafeFileHandle hVolume)
+        /// <summary>
+        /// Locks volume via FSCTL_LOCK_VOLUME call
+        /// </summary>
+        /// <param name="hVolume">Handle for a volume, opened for direct access. Can be obtained via CreateFile with '\\.\X:' parameter</param>
+        /// <see cref="https://msdn.microsoft.com/en-us/library/windows/desktop/aa364575%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396"/>
+        /// <returns></returns>
+        public static bool lockVolumeWin32(SafeFileHandle hVolume)
         {
             bool result = false;
 
@@ -562,14 +616,14 @@ namespace SDInstallTool
 
         #region unlockVolumeWin32
 
-        private static bool unlockVolumeWin32(String volumeName)
+        public static bool unlockVolumeWin32(String volumeName)
         {
             bool result = unlockVolumeWin32(openDiskWin32(volumeName));
 
             return result;
         }
 
-        private static bool unlockVolumeWin32(SafeFileHandle hVolume)
+        public static bool unlockVolumeWin32(SafeFileHandle hVolume)
         {
             bool result = false;
 
@@ -599,26 +653,6 @@ namespace SDInstallTool
         #endregion unlockVolumeWin32
 
         #region wipeDiskBlockWin32
-
-        private static bool wipeDiskBlockWin32(String physicalDiskName, int sizeMegabytes)
-        {
-            bool result = false;
-
-            using (SafeFileHandle hDisk = openDiskWin32(physicalDiskName))
-            {
-                if (lockVolumeWin32(hDisk))
-                {
-                    if (enableWriteToDiskExtendedAreaWin32(hDisk))
-                    {
-                        result = wipeDiskBlockWin32(hDisk, sizeMegabytes);
-                    }
-
-                    unlockVolumeWin32(hDisk);
-                }
-            }
-
-            return result;
-        }
 
         private static bool wipeDiskBlockWin32(SafeFileHandle hDisk, int sizeMegabytes)
         {
@@ -843,6 +877,8 @@ namespace SDInstallTool
             List<DISK_EXTENT> result = new List<DISK_EXTENT>();
 
             volumeID = volumeID.TrimEnd('\\');
+
+            //Logger.Info("Getting extents for volume: {0}", volumeID);
 
             using (SafeFileHandle hVolume = openDiskWin32(volumeID))
             {

@@ -142,7 +142,7 @@ namespace SDInstallTool
             prepareDiskForWiping(disk);
 
             // Step 2. Open physical disk
-            using (SafeFileHandle hDisk = openDiskWin32(physicalDiskName))
+            using (SafeFileHandle hDisk = openDiskWin32Exclusive(physicalDiskName))
             {
                 // Step 4: Dismount the whole disk
                 if (dismountVolumeWin32(hDisk))
@@ -183,110 +183,141 @@ namespace SDInstallTool
             bool result = false;
 
             // Step 1: Verify that content will fit on SD card
-            if (verifyDiskSize(physicalDiskName))
-            {
-                // Step 2: Disable automount for new volumes (otherwise newly created partitions will be immediately mounted)
-                bool autoMountState = getAutoMountWin32();
-                if (autoMountState)
-                    setAutoMountWin32(false);
-
-                // Step 3: Perform full wipe (MBR + first few megabytes)
-                if (wipeDisk(physicalDiskName))
-                {
-                    SetProgress(5);
-
-                    // Step 4: Calculate partition sizes based on SD card capacity
-                    // Partition 0: Flexible size (ExFAT)
-                    // Partition 1: Fixed size (Altera SoC preloader)
-                    var partitions = calculatePartitions(physicalDiskName);
-
-                    // Step 5: Write partition information into MBR
-                    if (createPartitions(physicalDiskName, partitions))
-                    {
-                        SetProgress(10);
-
-                        // Re-read disk structure according new partitioning
-                        var disk = discoverDisk(physicalDiskName);
-
-                        if (disk != null && disk.partitions.Count == 2)
-                        {
-                            var bytesPerSector = disk.bytesPerSector;
-
-                            var fatVolumeGUID = String.Empty;
-                            if (disk.volumes.Count == 0)
-                            {
-                                // WMI was unable to provide information about volume
-                                // Let's retrieve from WinAPI
-                                var volumes = getAllVolumesForDiskWin32(physicalDiskName);
-                                if (volumes.Count > 0)
-                                {
-                                    // TODO: Probably it's necessary to match volume by size / FS type
-                                    fatVolumeGUID = volumes[0];
-                                }
-                            }
-                            else
-                            {
-                                // Data partition is first, for both Windows 7 and Windows 10.
-                                fatVolumeGUID = disk.volumes[0].GUID;
-                            }
-
-                            var preloaderPartition = disk.partitions[1];
-                            var preloaderPartitionOffsetSector = preloaderPartition.offsetSec;
-                            var preloaderPartitionSizeSectors = preloaderPartition.sizeSec;
-
-                            #region Extra sanity check
-                            var referencePreloaderPartitionSizeSectors = (uint)(PARTITION_0_SIZE / (ulong)bytesPerSector);
-                            if (preloaderPartitionSizeSectors < referencePreloaderPartitionSizeSectors)
-                            {
-                                Logger.Error("Boot partition size is smaller than required. Stopping further processing");
-                                return result;
-                            }
-
-                            #endregion Extra sanity check
-
-                            // Unmount all points related to the disk
-                            // OS tries to mount Linux and FAT partitions immediately
-                            foreach (var volume in disk.volumes)
-                            {
-                                dismountVolume(volume.GUID);
-                            }
-                            SetProgress(12);
-
-                            // Step 6: Initiate images copy into each fixed-size partition
-                            // Step 6.1: Write preloader partition from image file
-                            writePreloaderPartitionFromFile(
-                                physicalDiskName,
-                                preloaderPartitionOffsetSector,
-                                preloaderPartitionSizeSectors,
-                                bytesPerSector,
-                                true,
-                                15,
-                                90);
-
-                            SetProgress(15);
-
-                            // Step 6.3: Format ExFAT partition programmatically
-                            String mountPoint = formatDataPartition(fatVolumeGUID);
-                            SetProgress(20);
-
-                            if (!String.IsNullOrEmpty(mountPoint))
-                            {
-                                // Step 7: copy Linux and/or MiSTer data files to Data partition
-                                result = ImageManager.copyUpdateFiles(mountPoint);
-                            }
-
-                            SetProgress(100);
-                        }
-                    }
-                }
-
-                // Step 7: Restore automount state
-                if (autoMountState)
-                    setAutoMountWin32(true);
-            }
-            else
+            result = verifyDiskSize(physicalDiskName);
+            if (!result)
             {
                 // Disk size is insufficient to fit images
+                Logger.Error("Not enough disk space on SD card to fit all required data");
+                return result;
+            }
+            
+            // Step 2: Disable automount for new volumes (otherwise newly created partitions will be immediately mounted)
+            bool autoMountState = getAutoMountWin32();
+            if (autoMountState)
+               setAutoMountWin32(true);
+
+            // Step 3: Perform full wipe (MBR + first few megabytes)
+            result = wipeDisk(physicalDiskName);
+            SetProgress(5);
+
+            // Step 4: Calculate partition sizes based on SD card capacity
+            // Step 5: Write partition information into MBR
+            if (result)
+            {
+                result = full_writeDiskLayout(physicalDiskName);
+                SetProgress(10);
+            }
+
+            // Step 6: Re-read update information about disk layout
+            // Step 7: Write Altera preloader partition data
+            var fatVolumeGUID = String.Empty;
+            if (result)
+            {
+                // Re-read disk structure according new partitioning
+                var disk = discoverDisk(physicalDiskName);
+
+                if (disk != null && disk.partitions.Count == 2)
+                {
+                    var bytesPerSector = disk.bytesPerSector;
+
+                    if (disk.volumes.Count == 0)
+                    {
+                        // WMI was unable to provide information about volume
+                        // Let's retrieve from WinAPI
+                        var volumes = getAllVolumesForDiskWin32(physicalDiskName);
+                        if (volumes.Count > 0)
+                        {
+                            // TODO: Probably it's necessary to match volume by size / FS type
+                            fatVolumeGUID = volumes[0];
+                        }
+                    }
+                    else
+                    {
+                        // Data partition is first, for both Windows 7 and Windows 10.
+                        fatVolumeGUID = disk.volumes[0].GUID;
+                    }
+
+                    var preloaderPartition = disk.partitions[1];
+                    var preloaderPartitionOffsetSector = preloaderPartition.offsetSec;
+                    var preloaderPartitionSizeSectors = preloaderPartition.sizeSec;
+
+                    #region Extra sanity check
+                    var referencePreloaderPartitionSizeSectors = (uint)(PARTITION_0_SIZE / (ulong)bytesPerSector);
+                    if (preloaderPartitionSizeSectors < referencePreloaderPartitionSizeSectors)
+                    {
+                        Logger.Error("Boot partition size is smaller than required. Stopping further processing");
+                        return result;
+                    }
+
+                    #endregion Extra sanity check
+
+
+                    SetProgress(12);
+
+                    // Write preloader partition from image file
+                    result = writePreloaderPartitionFromFile(
+                        physicalDiskName,
+                        preloaderPartitionOffsetSector,
+                        preloaderPartitionSizeSectors,
+                        bytesPerSector,
+                        true,
+                        12,
+                        15);
+
+                    SetProgress(15);
+                }
+            }
+
+            // Step 8: Format ExFAT partition
+            // Step 9: Copy file bundle to ExFAT partition
+            if (result)
+            {
+                // Format ExFAT partition programmatically
+                String mountPoint = formatDataPartition(fatVolumeGUID);
+                SetProgress(20);
+
+                if (!String.IsNullOrEmpty(mountPoint))
+                {
+                    // Copy Linux and/or MiSTer data files to Data partition
+                    result = ImageManager.copyUpdateFiles(mountPoint);
+                }
+
+                SetProgress(100);
+            }
+
+            // Step 10: Restore automount state
+            if (autoMountState)
+                setAutoMountWin32(true);
+
+
+            return result;
+        }
+
+        public static bool full_writeDiskLayout(string physicalDiskName)
+        {
+            bool result = false;
+
+            // Partition 0: Flexible size (ExFAT)
+            // Partition 1: Fixed size (Altera SoC preloader)
+            var partitions = calculatePartitions(physicalDiskName);
+
+            using (SafeFileHandle hDisk = openDiskWin32Exclusive(physicalDiskName))
+            {
+                if (enableWriteToDiskExtendedAreaWin32(hDisk))
+                {
+                    Logger.Info("I/O boundary checks disabled for the disk: {0}", physicalDiskName);
+                }
+
+                if (lockVolumeWin32WithTimeout(hDisk))
+                {
+                    // Write partition information into MBR
+                    if (createPartitions(hDisk, partitions))
+                    {
+                        result = true;
+                    }
+
+                    unlockVolumeWin32(hDisk);
+                }
             }
 
             return result;
@@ -340,26 +371,31 @@ namespace SDInstallTool
                     fatVolumeGUID = disk.volumes[2].GUID;
                 }
 
-                if (String.IsNullOrEmpty(fatVolumeGUID)) return false;
-
-                // Unmount all points related to the disk
-                // OS tries to mount Linux and FAT partitions immediately
-                foreach (var volume in disk.volumes)
+                if (!String.IsNullOrEmpty(fatVolumeGUID))
                 {
-                    dismountVolume(volume.GUID);
+                    // Unmount all points related to the disk
+                    // OS tries to mount Linux and FAT partitions immediately
+                    foreach (var volume in disk.volumes)
+                    {
+                        dismountVolume(volume.GUID);
+                    }
+                    SetProgress(15);
+
+                    String mountPoint = mountVolume(fatVolumeGUID);
+                    SetProgress(20);
+
+                    if (!String.IsNullOrEmpty(mountPoint))
+                    {
+                        // Step 7: copy Linux and/or MiSTer data files to Data partition
+                        result = ImageManager.copyUpdateFiles(mountPoint);
+                    }
+
+                    SetProgress(100);
                 }
-                SetProgress(15);
-
-                String mountPoint = mountVolume(fatVolumeGUID);
-                SetProgress(20);
-
-                if (!String.IsNullOrEmpty(mountPoint))
+                else
                 {
-                    // Step 7: copy Linux and/or MiSTer data files to Data partition
-                    result = ImageManager.copyUpdateFiles(mountPoint);
+                    Logger.Error("Unable to find FAT32/ExFat volume");
                 }
-
-                SetProgress(100);
             }
 
             return result;
@@ -414,10 +450,12 @@ namespace SDInstallTool
                 {
                     var volume = disk.volumes[idx];
                     SafeFileHandle hVolume = null;
+                    bool volumeLocked = false;
 
                     if (!string.IsNullOrEmpty(volume.mountPoint))
                     {
-                        hVolume = Win32HandleUtils.GetVolumeHandle(volume.mountPoint, FileAccess.Read, ShareMode.ReadWriteDelete);
+                        string directMountPoint = Win32HandleUtils.MountPointToDirectMountPoint(volume.mountPoint);
+                        hVolume = Win32HandleUtils.GetVolumeHandle(directMountPoint, FileAccess.ReadWrite, ShareMode.None);
 
                         // Volume is mounted, so need to dismount first
                         if (isVolumeMountedWin32(hVolume))
@@ -425,22 +463,29 @@ namespace SDInstallTool
                             dismountVolumeWin32(hVolume);
                         }
 
-                        lockVolumeWin32(hVolume);
+                        volumeLocked = lockVolumeWin32(hVolume);
                     }
                     else
                     {
                         // Volume has no mount point, so just lock it
-                        hVolume = Win32HandleUtils.GetVolumeHandle(volume.GUID, FileAccess.Read, ShareMode.ReadWriteDelete);
-                        lockVolumeWin32(hVolume);
+                        hVolume = Win32HandleUtils.GetVolumeHandle(volume.GUID, FileAccess.ReadWrite, ShareMode.None);
+                        volumeLocked = lockVolumeWin32(hVolume);
                     }
 
-                    // Increase reference count to prevent disposal
-                    bool addRefResult = false;
-                    hVolume.DangerousAddRef(ref addRefResult);
-                    volume.hVolume = hVolume;
+                    if (!volumeLocked)
+                    {
+                        // Increase reference count to prevent disposal
+                        bool addRefResult = false;
+                        hVolume.DangerousAddRef(ref addRefResult);
+                        volume.hVolume = hVolume;
 
-                    // Actualize object in a collection
-                    disk.volumes[idx] = volume;
+                        // Actualize object in a collection
+                        disk.volumes[idx] = volume;
+                    }
+                    else
+                    {
+                        Logger.Error("Unable to lock volume {0}", volume.GUID);
+                    }
                 }
             }
             catch
@@ -521,7 +566,7 @@ namespace SDInstallTool
             return result;
         }
 
-        private static bool createPartitions(String physicalDiskName, List<PartitionInfo> partitions)
+        private static bool createPartitions(SafeFileHandle hDisk, List<PartitionInfo> partitions)
         {
             bool result = false;
 
@@ -529,17 +574,14 @@ namespace SDInstallTool
             {
                 byte[] mbrBytes = PartitionManagement.createMBRSector(partitions);
 
-                using (SafeFileHandle hDisk = openDiskWin32(physicalDiskName))
+                if (!hDisk.IsInvalid)
                 {
-                    if (!hDisk.IsInvalid)
+                    if (writeMBR(hDisk, mbrBytes))
                     {
-                        if (writeMBR(hDisk, mbrBytes))
-                        {
-                            result = true;
+                        result = true;
 
-                            // Re-enumerate disk in OS
-                            updateDiskPropertiesWin32(hDisk);
-                        }
+                        // Re-enumerate disk in OS
+                        updateDiskPropertiesWin32(hDisk);
                     }
                 }
             }
@@ -634,44 +676,50 @@ namespace SDInstallTool
             return result;
         }
 
+        /*
+         * According to http://msdn.microsoft.com/en-us/library/windows/desktop/aa364562.aspx
+         * To change a volume file system:
+         *   Open a volume
+         *   Lock the volume
+         *   Format the volume
+         *   Dismount the volume
+         *   Unlock the volume
+         *   Close the volume handle
+        */
         private static String formatDataPartition(String volumeGUID)
         {
             String result = String.Empty;
-
             bool res = false;
 
+            // Ensure that volume to be formatted for FAT32/ExFAT has mount point (<Letter>:)
             char driveLetter = '\0';
             string mountPoint = mountVolume(volumeGUID);
             if (!string.IsNullOrEmpty(mountPoint))
                 driveLetter = mountPoint[0];
-
-            if (driveLetter != '\0')
-            {
-                String uuid = Utility.PurifyGUIDForVolume(volumeGUID);
-                if (!String.IsNullOrEmpty(uuid))
-                {
-                    res = PartitionManagement.formatExFATPartitionWMI(volumeGUID);
-                    if (res)
-                    {
-                        result = mountPoint;
-                    }
-                }
-
-                #region Info Log
-                if (res)
-                {
-                    Logger.Info("OK");
-                }
-                else
-                {
-                    Logger.Info("Format failed");
-                }
-                #endregion
-            }
-            else
+        
+            if (driveLetter == '\0')
             {
                 Logger.Error("Unable to mount volume {0}", volumeGUID);
+                return result;
             }
+
+            res = PartitionManagement.formatExFATPartitionSystem(mountPoint);
+            if (res)
+            {
+                result = mountPoint;
+            }
+
+            /*
+            String uuid = Utility.PurifyGUIDForVolume(volumeGUID);
+            if (!String.IsNullOrEmpty(uuid))
+            {
+                res = PartitionManagement.formatExFATPartitionWMI(volumeGUID);
+                if (res)
+                {
+                    //result = mountPoint;
+                }
+            }
+            */
 
             // Flush all pending changes to the volume
             flushVolumeWin32(volumeGUID);
@@ -703,10 +751,8 @@ namespace SDInstallTool
                 // Mount with new drive letter unmounting any auto-assignments
                 if (mountVolumeWin32(mountPoint, volumeGUID))
                 {
-                    result = mountPoint;
+                    result = mountPoint.Substring(0, 2); // Return in 'D:' format (with no back-slash)
                 }
-
-                unlockVolumeWin32(mountPoint);
             }
 
             return result;
@@ -716,7 +762,7 @@ namespace SDInstallTool
         {
             bool result = false;
 
-            using (SafeFileHandle hVolume = openDiskWin32(volumeGUID))
+            using (SafeFileHandle hVolume = openDiskWin32Exclusive(volumeGUID))
             {
                 // Flush all pending changes to the volume
                 flushVolumeWin32(hVolume);
@@ -751,20 +797,6 @@ namespace SDInstallTool
         }
 
         #endregion fullInstall support
-
-        #region updateLinux support
-
-        private static bool isLinuxPartitionValid(String physicalDiskName)
-        {
-            bool result = false;
-
-            SafeFileHandle hDisk = openDiskWin32(physicalDiskName);
-
-
-            return result;
-        }
-
-        #endregion updateLinux support
 
         #endregion Logic support methods
 

@@ -34,6 +34,7 @@ namespace SDInstallTool
         internal const uint FILE_SEEK_CURRENT = 1;
         internal const uint FILE_SEEK_END = 2;
 
+        internal const uint FILE_SHARE_NONE = 0x0;
         internal const uint FILE_SHARE_READ = 0x1;
         internal const uint FILE_SHARE_WRITE = 0x2;
         internal const uint FILE_SHARE_DELETE = 0x4;
@@ -43,11 +44,13 @@ namespace SDInstallTool
 
         internal const uint FILE_ATTRIBUTE_NORMAL = 0x00000080;
 
+        // All UICTL constants described here: http://www.ioctls.net/
         internal const uint IOCTL_DISK_GET_DRIVE_GEOMETRY = 0x70000;
         internal const uint IOCTL_DISK_GET_DRIVE_GEOMETRY_EX = 0x700a0;
         internal const uint IOCTL_DISK_DELETE_DRIVE_LAYOUT = 0x7c100;
         internal const uint IOCTL_DISK_UPDATE_PROPERTIES = 0x0070140;
         internal const uint IOCTL_DISK_GET_DRIVE_LAYOUT_EX = 0x70050;
+        internal const uint IOCTL_DISK_CREATE_DISK = 0x7c058;
 
         internal const uint IOCTL_STORAGE_GET_DEVICE_NUMBER = 0x2d1080;
 
