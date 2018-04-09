@@ -8,6 +8,7 @@ using SDInstallTool.Detection;
 using SDInstallTool.Helpers;
 using System.Drawing;
 using static SDInstallTool.DiskManagement;
+using System.Threading;
 
 namespace SDInstallTool
 {
@@ -23,6 +24,7 @@ namespace SDInstallTool
 
         private static MainForm _instance;
 
+        private ManualResetEvent _eventCancel = new ManualResetEvent(false);
         private DriveDetector _driveWatcher;
         private bool isUpdatePackageValid = false;
         private bool isDiskUpdatable = false;
@@ -456,6 +458,9 @@ namespace SDInstallTool
 
             // Block all UI controls
             DisableButtons(true);
+
+            // Allow to cancel operation
+            EnableCancel();
         }
 
         void DiskOperationFinished()
@@ -471,6 +476,8 @@ namespace SDInstallTool
                 return;
             }
             #endregion Ensure executed in main thread
+
+            DisableCancel();
 
             SetProgress(100);
 
@@ -568,7 +575,12 @@ namespace SDInstallTool
                         bool result = DiskManagement.fullInstall(disk.physicalName);
                         DiskOperationFinished();
 
-                        if (result)
+                        if (IsCancelTriggered())
+                        {
+                            message = string.Format("Full install for disk {0} was cancelled", disk.displayName);
+                            ShowMessageBoxTopmost(message, "Operation cancelled");
+                        }
+                        else if (result)
                         {
                             message = string.Format("Full install for disk {0} finished successfully", disk.displayName);
                             ShowMessageBoxTopmost(message, "Operation finished");
@@ -609,7 +621,12 @@ namespace SDInstallTool
                         bool result = DiskManagement.updateBoot(disk.physicalName);
                         DiskOperationFinished();
 
-                        if (result)
+                        if (IsCancelTriggered())
+                        {
+                            message = string.Format("Bootloader update on disk {0} was cancelled", disk.displayName);
+                            ShowMessageBoxTopmost(message, "Operation cancelled");
+                        }
+                        else if (result)
                         {
                             message = string.Format("Bootloader update on disk {0} finished successfully", disk.displayName);
                             ShowMessageBoxTopmost(message, "Operation finished");
@@ -650,7 +667,12 @@ namespace SDInstallTool
                         bool result = DiskManagement.updateAll(disk.physicalName);
                         DiskOperationFinished();
 
-                        if (result)
+                        if (IsCancelTriggered())
+                        {
+                            message = string.Format("System update on disk {0} was cancelled", disk.displayName);
+                            ShowMessageBoxTopmost(message, "Operation cancelled");
+                        }
+                        else if (result)
                         {
                             message = string.Format("System update on disk {0} finished successfully", disk.displayName);
                             ShowMessageBoxTopmost(message, "Operation finished");
@@ -763,7 +785,24 @@ namespace SDInstallTool
 
         private void cancelOperationToolStripMenuItem_Click(object sender, EventArgs e)
         {
+#if WITH_CONFIRMATION
+            var message = string.Format("Operation is in progress, do you really want to cancel?");
+            var confirmResult = MessageBox.Show(message, "Warning!", MessageBoxButtons.YesNo);
+            if (confirmResult == DialogResult.Yes)
+            {
+                _eventCancel.Set();
 
+                DisableCancel();
+
+                Logger.Info("Cancel triggered");
+            }
+#else
+            _eventCancel.Set();
+
+            DisableCancel();
+
+            Logger.Info("Cancel triggered");
+#endif
         }
 
         #endregion
@@ -772,7 +811,7 @@ namespace SDInstallTool
 
         public void SetProgressValue(int value)
         {
-            #region Ensure executed in main thread
+#region Ensure executed in main thread
             if (InvokeRequired)
             {
                 Invoke((MethodInvoker)delegate
@@ -782,7 +821,7 @@ namespace SDInstallTool
 
                 return;
             }
-            #endregion Ensure executed in main thread
+#endregion Ensure executed in main thread
 
             if (value < 0)
                 value = 0;
@@ -826,13 +865,74 @@ namespace SDInstallTool
             null, 1000, System.Threading.Timeout.Infinite);
         }
 
-        #endregion Progress
+#endregion Progress
 
-        #region Stats
+#region Cancel
+
+        static readonly string CancelMenuItemKey = "cancelOperationToolStripMenuItem";
+
+        private void EnableCancel()
+        {
+#region Ensure executed in main thread
+            if (InvokeRequired)
+            {
+                Invoke((MethodInvoker)delegate
+                {
+                    EnableCancel();
+                });
+
+                return;
+            }
+#endregion Ensure executed in main thread
+
+            _eventCancel.Reset();
+            cancelOperationToolStripMenuItem.Enabled = true;
+        }
+
+        private void DisableCancel()
+        {
+#region Ensure executed in main thread
+            if (InvokeRequired)
+            {
+                Invoke((MethodInvoker)delegate
+                {
+                    DisableCancel();
+                });
+
+                return;
+            }
+#endregion Ensure executed in main thread
+
+            cancelOperationToolStripMenuItem.Enabled = false;
+        }
+
+        public static void Cancel()
+        {
+            if (_instance != null)
+            {
+                _instance._eventCancel.Set();
+            }
+        }
+
+        public static bool IsCancelTriggered()
+        {
+            bool result = false;
+
+            if (_instance != null)
+            {
+                result = _instance._eventCancel.WaitOne(0);
+            }
+
+            return result;
+        }
+
+#endregion Cancel
+
+#region Stats
 
         private void SetStatsValue(String value)
         {
-            #region Ensure executed in main thread
+#region Ensure executed in main thread
             if (InvokeRequired)
             {
                 Invoke((MethodInvoker)delegate
@@ -842,7 +942,7 @@ namespace SDInstallTool
 
                 return;
             }
-            #endregion Ensure executed in main thread
+#endregion Ensure executed in main thread
 
             labelStats.Text = value;
         }
@@ -855,9 +955,9 @@ namespace SDInstallTool
             }
         }
 
-        #endregion Stats
+#endregion Stats
 
-        #region Logging
+#region Logging
 
         public static void LogMessage(String message)
         {
@@ -867,6 +967,6 @@ namespace SDInstallTool
             }
         }
 
-        #endregion Logging
+#endregion Logging
     }
 }

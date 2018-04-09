@@ -120,6 +120,10 @@ namespace SDInstallTool
                 Directory.CreateDirectory(target.FullName);
                 foreach (DirectoryInfo diSourceSubDir in source.GetDirectories())
                 {
+                    // React on Cancellation
+                    if (MainForm.IsCancelTriggered())
+                        return false;
+
                     DirectoryInfo nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name);
                 }
 

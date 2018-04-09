@@ -75,6 +75,10 @@ namespace SDInstallTool
 
             foreach (var file in m_listFilePaths)
             {
+                // React on Cancellation
+                if (MainForm.IsCancelTriggered())
+                    return;
+
                 try
                 {
                     string sourcePath = Path.Combine(m_sourcePath, file);
@@ -150,6 +154,10 @@ namespace SDInstallTool
                     int currentBlockSize = 0;
                     while ((currentBlockSize = source.Read(buffer, 0, buffer.Length)) > 0)
                     {
+                        // React on Cancellation
+                        if (MainForm.IsCancelTriggered())
+                            return;
+
                         dest.Write(buffer, 0, currentBlockSize);
 
                         m_bytesCopied += currentBlockSize;

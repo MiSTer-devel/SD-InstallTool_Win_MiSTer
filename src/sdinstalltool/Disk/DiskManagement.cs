@@ -202,7 +202,7 @@ namespace SDInstallTool
 
             // Step 4: Calculate partition sizes based on SD card capacity
             // Step 5: Write partition information into MBR
-            if (result)
+            if (result && !MainForm.IsCancelTriggered())
             {
                 result = full_writeDiskLayout(physicalDiskName);
                 SetProgress(10);
@@ -211,7 +211,7 @@ namespace SDInstallTool
             // Step 6: Re-read update information about disk layout
             // Step 7: Write Altera preloader partition data
             var fatVolumeGUID = String.Empty;
-            if (result)
+            if (result && !MainForm.IsCancelTriggered())
             {
                 // Re-read disk structure according new partitioning
                 var disk = discoverDisk(physicalDiskName);
@@ -270,7 +270,7 @@ namespace SDInstallTool
 
             // Step 8: Format ExFAT partition
             // Step 9: Copy file bundle to ExFAT partition
-            if (result)
+            if (result && !MainForm.IsCancelTriggered())
             {
                 // Format ExFAT partition programmatically
                 String mountPoint = formatDataPartition(fatVolumeGUID);
@@ -288,7 +288,6 @@ namespace SDInstallTool
             // Step 10: Restore automount state
             if (autoMountState)
                 setAutoMountWin32(true);
-
 
             return result;
         }
