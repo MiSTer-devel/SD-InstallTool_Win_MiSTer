@@ -1,16 +1,15 @@
 # SD-InstallTool_Win_MiSTer
 SD Card preparation tool for MiSTer FPGA project: https://github.com/MiSTer-devel/Main_MiSTer/wiki
 
-Latest release link: [1.0.0.1](/releases/20170917/MiSTer%20SD%20Card%20Utility.exe?raw=true)
+Latest release link: [2.0.2.0](/releases/20180408/MiSTer%20SD%20Card%20Utility.exe?raw=true)
 
 Supported OS:
 - Windows 10 64-bit
 - Windows 8.x 64-bit
 - Windows 7 64-bit
 
-Not supported:
-- Any 32-bit OS (not a technology blocker if there will be a demand, code and builds will be adapted)
-
+Not tested:
+- Any 32-bit OS
 Pre-requisites:
 - .Net framework v2.0 or newer installed
 
