@@ -112,7 +112,7 @@ namespace SDInstallTool
 
         static readonly Regex PatternGUID = new Regex(@"^.*([0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12}).*$", RegexOptions.Compiled);
 
-        static readonly string DiskFormatPattern = "{0} /FS:exFAT /Y /V:MiSTer_Data /Q";
+        static readonly string DiskFormatPattern = "{0} /FS:exFAT /A:32K /Y /V:MiSTer_Data /Q";
 
         #endregion
 
